@@ -35,11 +35,11 @@ def filter_training(main_class = 1):
 def main():
     for user_class in range(0, 10):
         train_data = filter_training(user_class)
-        x_train = train_data.drop(columns=["class"])
+        x_train = train_data.drop(columns=["class", "Unnamed: 0"])
         y_train = (train_data["class"] == user_class).astype(int)
 
         test_data = filter_testing()
-        x_test = test_data.drop(columns=["class"])
+        x_test = test_data.drop(columns=["class", "Unnamed: 0"])
         y_test = (test_data["class"] == user_class).astype(int)
 
         # Create and train model
