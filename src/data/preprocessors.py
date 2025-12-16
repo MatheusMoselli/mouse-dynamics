@@ -1,43 +1,41 @@
 """
 Data preprocessing utilities for mouse dynamics.
-Handles cleaning, normalization, and trajectory segmentation.
+Handles invalid data and movement segmentation.
 """
+from abc import ABC, abstractmethod
+from typing import Dict
 
 import pandas as pd
-import numpy as np
-from typing import List, Tuple, Optional
-from scipy.signal import savgol_filter
-from sklearn.preprocessing import StandardScaler
 import logging
 
 logger = logging.getLogger(__name__)
 
-
-class MouseDynamicsPreprocessor:
-    """Main preprocessing pipeline for mouse dynamics data."""
-
-    def __init__(self,
-                 remove_duplicates: bool = True):
-                 # remove_stationary: bool = True):
+class BasePreprocessor(ABC):
+    """Abstract base class for preprocessors."""
+    @abstractmethod
+    def preprocess(self, data: pd.DataFrame, config: Dict) -> pd.DataFrame:
+        #TODO: Add typing to the config dictionary
         """
-        Initialize the preprocessor.
+        Preprocess the given dataframe.
 
-        Args:
-            remove_duplicates: Remove consecutive duplicate points
-            remove_stationary: Remove points where mouse doesn't move
+        :param data: Initial dataframe.
+        :param config: Configuration dictionary.
+        :return: Preprocessed dataframe.
         """
-        self.remove_duplicates = remove_duplicates
-        # self.remove_stationary = remove_stationary
+        pass
 
-    def preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+
+class PreprocessorByMouseClick(BasePreprocessor):
+    """Preprocessor that joins lines between mouse clicks"""
+
+    #TODO: Implement
+    def preprocess(self, df: pd.DataFrame, config: Dict) -> pd.DataFrame:
         """
-        Apply full preprocessing pipeline.
+        Preprocess the given dataframe.
 
-        Args:
-            df: Raw trajectory DataFrame
+        :param df: Raw trajectory DataFrame
 
-        Returns:
-            Preprocessed DataFrame
+        :return: Preprocessed DataFrame
         """
         df = df.copy()
 
@@ -47,38 +45,61 @@ class MouseDynamicsPreprocessor:
         # Remove invalid rows
         df = df.dropna(subset=['x', 'y', 'timestamp'])
 
-        if self.remove_duplicates:
-            df = self._remove_duplicate_points(df)
-
-        # if self.remove_stationary:
-        #     df = self._remove_stationary_points(df)
-
         # Ensure timestamps are relative to start
-        if len(df) > 0:
+        if len(df) > 0 and df['timestamp'][0] != 0:
             df['timestamp'] = df['timestamp'] - df['timestamp'].iloc[0]
 
         return df.reset_index(drop=True)
 
-    def _remove_duplicate_points(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Remove consecutive duplicate points."""
-        # Keep first occurrence of duplicates
-        mask = (df['x'].diff() != 0) | (df['y'].diff() != 0)
-        mask.iloc[0] = True  # Keep first point
-        return df[mask]
 
-    # def _remove_stationary_points(self, df: pd.DataFrame,
-    #                               threshold: float = 1.0) -> pd.DataFrame:
-    #     """Remove points where mouse movement is below threshold."""
-    #     if len(df) < 2:
-    #         return df
-    #
-    #     # Calculate distance moved
-    #     dx = df['x'].diff()
-    #     dy = df['y'].diff()
-    #     distance = np.sqrt(dx ** 2 + dy ** 2)
-    #
-    #     # Keep points above threshold
-    #     mask = distance >= threshold
-    #     mask.iloc[0] = True  # Keep first point
-    #
-    #     return df[mask]
+class PreprocessorByMouseAction(BasePreprocessor):
+    """Preprocessor that joins lines between mouse actions (drag and drop, click, among others)."""
+
+    #TODO: Implement
+    def preprocess(self, df: pd.DataFrame, config: Dict) -> pd.DataFrame:
+        """
+        Preprocess the given dataframe.
+
+        :param df: Raw trajectory DataFrame
+
+        :return: Preprocessed DataFrame
+        """
+        df = df.copy()
+
+        # Sort by timestamp
+        df = df.sort_values('timestamp').reset_index(drop=True)
+
+        # Remove invalid rows
+        df = df.dropna(subset=['x', 'y', 'timestamp'])
+
+        # Ensure timestamps are relative to start
+        if len(df) > 0 and df['timestamp'][0] != 0:
+            df['timestamp'] = df['timestamp'] - df['timestamp'].iloc[0]
+
+        return df.reset_index(drop=True)
+
+class PreprocessorByDefinedAmountOfLines(BasePreprocessor):
+    """Preprocessor that joins lines in groups of a defined amount of lines."""
+
+    #TODO: Implement
+    def preprocess(self, df: pd.DataFrame, config: Dict) -> pd.DataFrame:
+        """
+        Preprocess the given dataframe.
+
+        :param df: Raw trajectory DataFrame
+
+        :return: Preprocessed DataFrame
+        """
+        df = df.copy()
+
+        # Sort by timestamp
+        df = df.sort_values('timestamp').reset_index(drop=True)
+
+        # Remove invalid rows
+        df = df.dropna(subset=['x', 'y', 'timestamp'])
+
+        # Ensure timestamps are relative to start
+        if len(df) > 0 and df['timestamp'][0] != 0:
+            df['timestamp'] = df['timestamp'] - df['timestamp'].iloc[0]
+
+        return df.reset_index(drop=True)

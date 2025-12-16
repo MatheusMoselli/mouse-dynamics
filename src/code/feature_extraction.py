@@ -1,15 +1,15 @@
-from src.data import MinecraftLoader
+from src.data import load_dataset, DatasetsNames
 from src.data.preprocessors import MouseDynamicsPreprocessor
 from src.features.extractors import MouseDynamicsExtractor
 
 if __name__ == "__main__":
     # Initializing the actors
-    loader = MinecraftLoader()
     preprocessor = MouseDynamicsPreprocessor()
     extractor = MouseDynamicsExtractor()
 
     # Loading the dataset standardized
-    data_by_users = loader.load()
+    data_by_users = load_dataset(DatasetsNames.MINECRAFT)
+    #TODO: Convert this in a builder, so I can do load_dataset().preprocess().extract_features()
 
     # Preprocessing the data
     for user_id, df in data_by_users.items():

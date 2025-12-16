@@ -6,13 +6,14 @@ Handles various formats and structures of behavioral biometric data.
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Literal
 from abc import ABC, abstractmethod
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+from src.data import DatasetsNames
 
+logger = logging.getLogger(__name__)
 
 class BaseDataLoader(ABC):
     """Abstract base class for dataset loaders."""
@@ -21,12 +22,12 @@ class BaseDataLoader(ABC):
         """
         Load the dataset.
 
-        Returns:
-            Dictionary mapping user_id to DataFrame with standardized columns.
+        :return: Dictionary mapping user_id to DataFrame with standardized columns.
         """
         pass
 
-    def _standardize_columns(self, df: pd.DataFrame,
+    @staticmethod
+    def _standardize_columns(df: pd.DataFrame,
                              x_col_name: str, y_col_name: str, time_col_name: str,
                              action_col_name: Optional[str] = None) -> pd.DataFrame:
         """Standardize column names to [x, y, timestamp, action, session_id]."""
@@ -48,9 +49,21 @@ class BaseDataLoader(ABC):
 
         return renamed[['x', 'y', 'timestamp', 'action']]
 
+    #TODO: Add an generic function to standardize the action column, override it in every class.
 
 class BalabitLoader(BaseDataLoader):
     """Loader for `Balabit` Mouse Dynamics dataset."""
+
+    def __init__(self):
+        """
+        Initialize the data loader.
+        """
+
+        super().__init__()
+        self.data_path = Path("../../datasets/raw/balabit/training_files")
+
+        if not self.data_path.exists():
+            raise FileNotFoundError(f"Data path not found: {self.data_path}")
 
     def load(self) -> Dict[str, pd.DataFrame]:
         """
@@ -69,8 +82,9 @@ class BalabitLoader(BaseDataLoader):
 
 
         CSV format: record timestamp, client timestamp, button, state, x, y
+        :return: Dictionary mapping user_id to DataFrame with standardized columns.
         """
-        user_data = {}
+        dataframes_by_users = {}
 
         for csv_file in sorted(self.data_path.glob("*.csv")):
             logger.info(f"Loading {csv_file.name}")
@@ -82,20 +96,19 @@ class BalabitLoader(BaseDataLoader):
                 # Standardize columns
                 standardized = self._standardize_columns(
                     user_df,
-                    x_col='x',
-                    y_col='y',
-                    time_col='timestamp',
-                    action_col_name='state',
-                    session_col_name='session_id'
+                    x_col_name='x',
+                    y_col_name='y',
+                    time_col_name='timestamp',
+                    action_col_name='state'
                 )
 
-                if user_id in user_data:
-                    user_data[user_id] = pd.concat([user_data[user_id], standardized])
+                if user_id in dataframes_by_users:
+                    dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized])
                 else:
-                    user_data[user_id] = standardized
+                    dataframes_by_users[user_id] = standardized
 
-        logger.info(f"Loaded {len(user_data)} users from Balabit dataset")
-        return user_data
+        logger.info(f"Loaded {len(dataframes_by_users)} users from Balabit dataset")
+        return dataframes_by_users
 
 class MinecraftLoader(BaseDataLoader):
     """Loader for `Continuous Authentication Using Mouse Movements, Machine Learning, and Minecraft` Mouse Dynamics dataset."""
@@ -127,6 +140,8 @@ class MinecraftLoader(BaseDataLoader):
             ├── 10raw
             ├── 40extracted
             └── 40raw
+
+        :return: Dictionary mapping user_id to DataFrame with standardized columns.
         """
         dataframes_by_users = {}
 
@@ -162,20 +177,16 @@ class MinecraftLoader(BaseDataLoader):
         return dataframes_by_users
 
 
-def load_dataset(dataset_name: str, config: Dict) -> Dict[str, pd.DataFrame]:
+def load_dataset(dataset_name: DatasetsNames) -> Dict[str, pd.DataFrame]:
     """
     Factory function to load datasets by name.
 
-    Args:
-        dataset_name: Name of the dataset ('balabit', 'minecraft')
-        config: Configuration dictionary with dataset path and settings
-
-    Returns:
-        Dictionary mapping user_id to DataFrame
+    :param dataset_name: Name of the dataset
+    :return: Dictionary mapping user_id to DataFrame
     """
     loaders = {
-        'balabit': BalabitLoader,
-        'minecraft': MinecraftLoader,
+        DatasetsNames.BALABIT: BalabitLoader,
+        DatasetsNames.MINECRAFT: MinecraftLoader,
     }
 
     if dataset_name in loaders:

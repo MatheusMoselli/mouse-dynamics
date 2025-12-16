@@ -1,14 +1,3 @@
-"""
-============================================================================
-DATA MODULE - src/data/
-============================================================================
-Complete implementations for data loading, preprocessing, and validation
-for mouse dynamics ML projects.
-"""
-
-# ============================================================================
-# FILE: src/data/__init__.py
-# ============================================================================
 """Data loading and preprocessing utilities for mouse dynamics."""
 
 from .loaders import (
@@ -17,6 +6,9 @@ from .loaders import (
     MinecraftLoader,
     load_dataset,
 )
+
+from .constants import DatasetsNames
+
 # from .preprocessors import (
 #     MouseDynamicsPreprocessor,
 #     TrajectorySegmenter,
@@ -30,4 +22,5 @@ __all__ = [
     "BalabitLoader",
     "MinecraftLoader",
     "load_dataset",
+    "DatasetsNames",
 ]
