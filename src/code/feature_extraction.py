@@ -1,11 +1,8 @@
-from src.data import load_dataset, DatasetsNames
-from src.data.preprocessors import MouseDynamicsPreprocessor
-from src.features.extractors import MouseDynamicsExtractor
+from src.data import load_dataset, DatasetsNames, MouseDynamicsExtractor
+from pathlib import Path
 
 if __name__ == "__main__":
     # Initializing the actors
-    preprocessor = MouseDynamicsPreprocessor()
-    extractor = MouseDynamicsExtractor()
 
     # Loading the dataset standardized
     data_by_users = load_dataset(DatasetsNames.MINECRAFT)
@@ -13,6 +10,15 @@ if __name__ == "__main__":
 
     # Preprocessing the data
     for user_id, df in data_by_users.items():
-        preprocessed_df = preprocessor.preprocess(df)
-        feature_extracted_df = extractor.extract_features(preprocessed_df)
-        feature_extracted_df.to_excel(f"../../datasets/features/minecraft/user{user_id}.xlsx", index=False)
+        if user_id != 0:
+            break
+
+        extractor = MouseDynamicsExtractor(df, remove_duplicate=True)
+        feature_extracted_df = extractor.extract_features()
+
+        file_path_str = f"../../datasets/features/minecraft/user{user_id}.xlsx"
+
+        file = Path(file_path_str)
+        file.unlink(missing_ok=True)
+
+        feature_extracted_df.to_excel(file_path_str, index=False)

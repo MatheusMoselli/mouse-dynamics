@@ -1,5 +1,7 @@
 """Data loading and preprocessing utilities for mouse dynamics."""
 
+from .constants import DatasetsNames
+
 from .loaders import (
     BaseDataLoader,
     BalabitLoader,
@@ -7,7 +9,9 @@ from .loaders import (
     load_dataset,
 )
 
-from .constants import DatasetsNames
+from .extractors import (
+    MouseDynamicsExtractor
+)
 
 # from .preprocessors import (
 #     MouseDynamicsPreprocessor,
@@ -18,9 +22,10 @@ from .constants import DatasetsNames
 # from .validation import DataValidator
 
 __all__ = [
+    "DatasetsNames",
     "BaseDataLoader",
     "BalabitLoader",
     "MinecraftLoader",
     "load_dataset",
-    "DatasetsNames",
+    "MouseDynamicsExtractor"
 ]

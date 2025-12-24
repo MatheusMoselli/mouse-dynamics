@@ -29,6 +29,7 @@ class BaseDataLoader(ABC):
     @staticmethod
     def _standardize_columns(df: pd.DataFrame,
                              x_col_name: str, y_col_name: str, time_col_name: str,
+                             user_id_col_name: Optional[str] = None,
                              action_col_name: Optional[str] = None) -> pd.DataFrame:
         """Standardize column names to [x, y, timestamp, action, session_id]."""
         renamed = df.rename(columns={
@@ -46,6 +47,10 @@ class BaseDataLoader(ABC):
         renamed['x'] = renamed['x'].astype(float)
         renamed['y'] = renamed['y'].astype(float)
         renamed['timestamp'] = pd.to_numeric(renamed['timestamp'], errors='coerce')
+
+        if user_id_col_name and user_id_col_name in df.columns:
+            renamed = renamed.rename(columns={user_id_col_name: 'user_id'})
+            return renamed[['x', 'y', 'timestamp', 'action', 'user_id']]
 
         return renamed[['x', 'y', 'timestamp', 'action']]
 
@@ -146,32 +151,57 @@ class MinecraftLoader(BaseDataLoader):
         dataframes_by_users = {}
 
         # Entering the 10extracted folder
-        self.data_path = self.data_path / "10extracted"
+        self.data_path = self.data_path / "40raw"
 
-        for csv_file in sorted(self.data_path.glob("*.csv")):
-            # Only use the SubjectX_raw.csv files
-            if not "raw" in csv_file.stem:
-                continue
+        # for csv_file in sorted(self.data_path.glob("*.csv")):
+        #     # Only use the SubjectX_raw.csv files
+        #     if not "raw" in csv_file.stem:
+        #         continue
+        #
+        #     logger.info(f"Loading {csv_file.name}")
+        #
+        #     df = pd.read_csv(csv_file)
+        #
+        #     user_id = csv_file.stem.replace("Subject", "").split("_")[0]
+        #
+        #     # Standardize columns
+        #     standardized = self._standardize_columns(
+        #         df,
+        #         x_col_name='X',
+        #         y_col_name='Y',
+        #         time_col_name='Timestamp',
+        #         action_col_name='Button Pressed'
+        #     )
+        #
+        #     if user_id in dataframes_by_users:
+        #         dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized])
+        #     else:
+        #         dataframes_by_users[user_id] = standardized
 
-            logger.info(f"Loading {csv_file.name}")
+        # Only use the SubjectX_raw.csv files
 
-            df = pd.read_csv(csv_file)
+        filename = "masterTrain"
+        df = pd.read_csv(self.data_path / "masterTrain.csv")
 
-            user_id = csv_file.stem.replace("Subject", "").split("_")[0]
+        logger.info(f"Loading {filename}")
 
-            # Standardize columns
-            standardized = self._standardize_columns(
-                df,
-                x_col_name='X',
-                y_col_name='Y',
-                time_col_name='Timestamp',
-                action_col_name='Button Pressed'
-            )
+        # Standardize columns
+        standardized = self._standardize_columns(
+            df,
+            x_col_name='X',
+            y_col_name='Y',
+            time_col_name='Timestamp',
+            user_id_col_name="Subject ID",
+            action_col_name='Button Pressed',
+        )
 
+        logger.info(f"{filename} standardized")
+
+        for user_id, user_df in standardized.groupby("user_id"):
             if user_id in dataframes_by_users:
-                dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized])
+                dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], user_df])
             else:
-                dataframes_by_users[user_id] = standardized
+                dataframes_by_users[user_id] = user_df
 
         logger.info(f"Loaded {len(dataframes_by_users)} users from Minecraft dataset")
         return dataframes_by_users

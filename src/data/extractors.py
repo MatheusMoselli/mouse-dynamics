@@ -27,127 +27,106 @@ class MouseDynamicsExtractor:
     The extractor can process trajectories in sequential windows, extracting features
     from each window to create a sequence of feature vectors.
     """
-
     def __init__(self,
+                 df: pd.DataFrame,
+                 remove_duplicate: bool = False,
                  amount_of_lines_in_sequence: int = 10,
                  curvature_threshold: float = 0.0005):
         """
         Initialize the feature extractor.
 
-        Args:
-            amount_of_lines_in_sequence: Number of trajectory points to group together
+        :param df: The standardized dataframe
+        :param remove_duplicate: Whether to remove consecutive duplicates (keep the first instance)
+        :param amount_of_lines_in_sequence: Number of trajectory points to group together
                                         for feature extraction. The trajectory will be
                                         divided into non-overlapping windows of this size.
-                                        Default: 10 points per window.
-            curvature_threshold: Threshold for detecting critical curvature points (THc)
-                               Used in some advanced curvature analysis features.
+        :param curvature_threshold: Threshold for detecting critical curvature points (THc)
         """
+        self.df = df
+        self.remove_duplicate = remove_duplicate
         self.amount_of_lines_in_sequence = amount_of_lines_in_sequence
         self.curvature_threshold = curvature_threshold
 
-    def extract_features(self, df: pd.DataFrame) -> pd.DataFrame:
+    def extract_features(self) -> pd.DataFrame:
         """
-        Extract all mouse dynamics features from a trajectory.
+        Extract all statistics from the mouse dynamics features  from a trajectory.
 
-        Args:
-            df: DataFrame containing mouse trajectory data
-
-        Returns:
-            Dictionary containing all extracted features with descriptive names
-
-        Raises:
-            ValueError: If trajectory has fewer than 3 points
+        :return: Dataframe containing all extracted features with descriptive names
         """
-        # Calculate number of windows
-        n_points = len(df)
-        window_size = self.amount_of_lines_in_sequence
-        n_windows = n_points // window_size
 
-        if n_windows == 0:
-            # If trajectory is shorter than window size, use entire trajectory
-            features = self._extract_features_from_window(df)
-            return pd.DataFrame([features])
+        general_features_df = self._extract_general_features()
 
-        # Extract features from each window
-        all_features = []
+        grouped_by_df = general_features_df.groupby(general_features_df.index // self.amount_of_lines_in_sequence)
 
-        for window_id in range(n_windows):
-            start_idx = window_id * window_size
-            end_idx = start_idx + window_size
+        statistics_extracted_arr = []
 
-            # Extract window
-            window_df = df.iloc[start_idx:end_idx].copy()
+        last_value_previous_group = None
 
-            # Skip windows with insufficient points
-            if len(window_df) < 3:
-                continue
+        for _, i_df in grouped_by_df:
 
-            try:
-                # Extract features from this window
-                features = self._extract_features_from_window(window_df)
-                all_features.append(features)
+            if self.remove_duplicate:
+                is_current_line_unique = (i_df[["x", "y"]] != i_df[["x", "y"]].shift()).any(axis=1)
 
-            except Exception as e:
-                logger.warning(f"Failed to extract features from window {window_id}: {e}")
-                continue
+                if last_value_previous_group is not None and i_df[["x","y"]].iloc[0].equals(last_value_previous_group):
+                    is_current_line_unique.iloc[0] = False
 
-        # Handle remaining points (if any)
-        remaining_start = n_windows * window_size
-        if remaining_start < n_points:
-            remaining_df = df.iloc[remaining_start:].copy()
+                i_df_clean = i_df[is_current_line_unique]
 
-            # Only process if we have at least 3 points
-            if len(remaining_df) >= 3:
-                try:
-                    features = self._extract_features_from_window(remaining_df)
-                    all_features.append(features)
-                except Exception as e:
-                    logging.warning(f"Failed to extract features from remaining window: {e}")
+                if not i_df_clean.empty:
+                    last_value_previous_group = i_df_clean[["x", "y"]].iloc[-1]
+            else:
+                i_df_clean = i_df
 
-        # Convert to DataFrame
-        if not all_features:
-            raise ValueError("No features could be extracted from any window")
+            #TODO: check if there is a better way to do this
+            i_df_statistics = {
+                "mean_speed": i_df_clean["dv"].mean(),
+                "std_speed": i_df_clean["dv"].std(),
+                "max_speed": i_df_clean["dv"].max(),
+                "min_speed": i_df_clean["dv"].min(),
 
-        features_df = pd.DataFrame(all_features)
-        return features_df
+                "mean_x_speed": i_df_clean["dvx"].mean(),
+                "std_x_speed": i_df_clean["dvx"].std(),
+                "max_x_speed": i_df_clean["dvx"].max(),
+                "min_x_speed": i_df_clean["dvx"].min(),
 
-    def _extract_features_from_window(self, df: pd.DataFrame) -> Dict[str, float]:
+                "mean_y_speed": i_df_clean["dvy"].mean(),
+                "std_y_speed": i_df_clean["dvy"].std(),
+                "max_y_speed": i_df_clean["dvy"].max(),
+                "min_y_speed": i_df_clean["dvy"].min()
+            }
+
+            statistics_extracted_arr.append(i_df_statistics)
+
+        return pd.DataFrame(statistics_extracted_arr)
+
+    def _extract_general_features(self) -> pd.DataFrame:
         """
-        Extract features from a single window of trajectory data.
+        Extract all movement features from a trajectory.
 
-        Args:
-            df: DataFrame containing a window of trajectory data
-
-        Returns:
-            Dictionary containing all extracted features
+        :return: Dataframe containing all extracted features with descriptive names
         """
+
         # Convert to numpy arrays for performance
-        x = df["x"].values.astype(float)
-        y = df["y"].values.astype(float)
-        t = df["timestamp"].values.astype(float)
+        x = self.df["x"].values.astype(float)
+        y = self.df["y"].values.astype(float)
+        t = self.df["timestamp"].values.astype(float)
 
-        # Normalize time to start at 0
-        t = t - t[0]
+        general_features = {
+            "x": self.df["x"],
+            "y": self.df["y"],
+            "timestamp": self.df["timestamp"],
+        }
 
-        # Initialize features dictionary
-        features = {}
+        general_features.update(self._extract_kinematic_features(x, y, t))
 
-        # === SPATIAL FEATURES ===
-        features.update(self._extract_spatial_features(x, y))
+        #TODO: Adjust the following methods
 
-        # === TEMPORAL FEATURES ===
-        features.update(self._extract_temporal_features(t))
+        # general_features.update(self._extract_spatial_features(x, y))
+        # general_features.update(self._extract_temporal_features(t))
+        # general_features.update(self._extract_statistical_features(x, y))
+        # general_features.update(self._extract_curvature_features(x, y, t))
 
-        # === KINEMATIC FEATURES ===
-        features.update(self._extract_kinematic_features(x, y, t))
-
-        # === STATISTICAL FEATURES ===
-        features.update(self._extract_statistical_features(x, y))
-
-        # === CURVATURE FEATURES ===
-        features.update(self._extract_curvature_features(x, y, t))
-
-        return features
+        return pd.DataFrame(general_features)
 
     def _extract_spatial_features(self, x: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """
@@ -232,98 +211,103 @@ class MouseDynamicsExtractor:
         Extract kinematic features (velocity, acceleration, jerk).
 
         These features describe the motion characteristics of the mouse cursor.
-        """
-        features = {}
 
-        # Calculate time differences (avoid division by zero)
-        dt = np.diff(t)
-        dt = np.where(dt == 0, 1e-10, dt)
+        :param x: the X coordinate array
+        :param y: the Y coordinate array
+        :param t: the timestamp array
+        """
+        motion_features = {}
+
+        # Calculate time differences
+        dt = np.concatenate(([0], np.diff(t)))
 
         # Calculate spatial differences
-        dx = np.diff(x)
-        dy = np.diff(y)
+        dx = np.concatenate(([0], np.diff(x)))
+        dy = np.concatenate(([0], np.diff(y)))
 
-        # === VELOCITY FEATURES ===
+        # The first value of the dataframe is always zero
+        #TODO: Probably there is another feature_extractions that doesnt make the first zero or make the last also zero. Check if is a good idea to parameterize this options
 
-        # Velocidade (V) - Speed magnitude
-        velocities = np.sqrt(dx**2 + dy**2) / dt
-        features['velocidade_media'] = np.mean(velocities)
-        features['velocidade_max'] = np.max(velocities)
-        features['velocidade_std'] = np.std(velocities)
+        # Speed magnitude {sqrt(dx*2 + dy*2) / dt}
+        # create an array of zeros the same size as dt
+        dv = np.zeros_like(dt)
+        # populate the dv variable assuring that there is no zero division
+        np.divide(np.sqrt(dx**2 + dy**2), dt, out = dv, where = dt != 0)
+        motion_features['dv'] = dv
 
-        # Velocidade Horizontal (x'(t)) - Velocity in x direction
-        vx = dx / dt
-        features['velocidade_horizontal_media'] = np.mean(vx)
-        features['velocidade_horizontal_std'] = np.std(vx)
+        # Horizontal speed (x-axis) {dx / dt}
+        dvx = np.zeros_like(dt)
+        #TODO: check my own audio recording in my personal whatsapp group. Talk to professor about it (duplicates interfering in timestamp difference)
+        np.divide(dx, dt, out = dvx, where = dt != 0)
+        motion_features['dvx'] = dvx
 
-        # Velocidade Vertical (y'(t)) - Velocity in y direction
-        vy = dy / dt
-        features['velocidade_vertical_media'] = np.mean(vy)
-        features['velocidade_vertical_std'] = np.std(vy)
+        # Vertical speed (y-axis) {dy / dt}
+        dvy = np.zeros_like(dt)
+        np.divide(dy, dt, out = dvy, where = dt != 0)
+        motion_features['dvy'] = dvy
 
-        # === ACCELERATION FEATURES ===
+        #TODO: finish the motion feature extraction
 
-        if len(velocities) > 1:
-            # Aceleração (A) - Rate of change of speed
-            accelerations = np.diff(velocities) / dt[1:]
-            features['aceleracao_media'] = np.mean(accelerations)
-            features['aceleracao_max'] = np.max(np.abs(accelerations))
-            features['aceleracao_std'] = np.std(accelerations)
-
-            # Aceleração Horizontal (x''(t)) - Acceleration in x direction
-            ax = np.diff(vx) / dt[1:]
-            features['aceleracao_horizontal_media'] = np.mean(ax)
-            features['aceleracao_horizontal_std'] = np.std(ax)
-
-            # Aceleração Vertical (y''(t)) - Acceleration in y direction
-            ay = np.diff(vy) / dt[1:]
-            features['aceleracao_vertical_media'] = np.mean(ay)
-            features['aceleracao_vertical_std'] = np.std(ay)
-
-            # === JERK FEATURES (rate of change of acceleration) ===
-
-            if len(accelerations) > 1:
-                jerk = np.diff(accelerations) / dt[2:]
-                features['saculejo_tangencial_media'] = np.mean(jerk)
-                features['saculejo_tangencial_std'] = np.std(jerk)
+        # Acceleration magnitude
+        # accelerations = np.diff(velocities) / dt[1:]
+        # motion_features['aceleracao_media'] = np.mean(accelerations)
+        # ##features['aceleracao_max'] = np.max(np.abs(accelerations))
+        # motion_features['aceleracao_std'] = np.std(accelerations)
+        #
+        # # Aceleração Horizontal (x''(t)) - Acceleration in x direction
+        # ax = np.diff(vx) / dt[1:]
+        # ##features['aceleracao_horizontal_media'] = np.mean(ax)
+        # ##features['aceleracao_horizontal_std'] = np.std(ax)
+        #
+        # # Aceleração Vertical (y''(t)) - Acceleration in y direction
+        # ay = np.diff(vy) / dt[1:]
+        # ##features['aceleracao_vertical_media'] = np.mean(ay)
+        # ##features['aceleracao_vertical_std'] = np.std(ay)
+        #
+        # # === JERK FEATURES (rate of change of acceleration) ===
+        #
+        # if len(accelerations) > 1:
+        #     jerk = np.diff(accelerations) / dt[2:]
+        #     motion_features['saculejo_tangencial_media'] = np.mean(jerk)
+        #     motion_features['saculejo_tangencial_std'] = np.std(jerk)
 
         # === DISTANCE-BASED VELOCITY AND ACCELERATION ===
-
-        distances = np.sqrt(dx**2 + dy**2)
-        cumulative_dist = np.concatenate([[0], np.cumsum(distances)])
-
-        if len(cumulative_dist) > 2:
-            # Velocidade em Função da Distância
-            features['velocidade_funcao_distancia_media'] = np.mean(velocities)
-
-            # Aceleração X em Função da Distância
-            if len(vx) > 1:
-                dist_segments = distances[:-1]
-                dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
-                ax_dist = np.diff(vx) / dist_segments
-                features['aceleracao_x_funcao_distancia_media'] = np.mean(ax_dist)
-
-            # Aceleração Y em Função da Distância
-            if len(vy) > 1:
-                dist_segments = distances[:-1]
-                dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
-                ay_dist = np.diff(vy) / dist_segments
-                features['aceleracao_y_funcao_distancia_media'] = np.mean(ay_dist)
+        #
+        # distances = np.sqrt(dx**2 + dy**2)
+        # cumulative_dist = np.concatenate([[0], np.cumsum(distances)])
+        #
+        # if len(cumulative_dist) > 2:
+        #     # Velocidade em Função da Distância
+        #     features['velocidade_funcao_distancia_media'] = np.mean(velocities)
+        #
+        #     # Aceleração X em Função da Distância
+        #     if len(vx) > 1:
+        #         dist_segments = distances[:-1]
+        #         dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
+        #         ax_dist = np.diff(vx) / dist_segments
+        #         features['aceleracao_x_funcao_distancia_media'] = np.mean(ax_dist)
+        #
+        #     # Aceleração Y em Função da Distância
+        #     if len(vy) > 1:
+        #         dist_segments = distances[:-1]
+        #         dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
+        #         ay_dist = np.diff(vy) / dist_segments
+        #         features['aceleracao_y_funcao_distancia_media'] = np.mean(ay_dist)
 
         # === TANGENTIAL MOTION ===
 
         # Velocidade Tangencial (Vt) - Speed along the curve
-        tangential_velocity = velocities
-        features['velocidade_tangencial_media'] = np.mean(tangential_velocity)
-        features['velocidade_tangencial_std'] = np.std(tangential_velocity)
+        # tangential_velocity = velocities
+        # features['velocidade_tangencial_media'] = np.mean(tangential_velocity)
+        # features['velocidade_tangencial_std'] = np.std(tangential_velocity)
+        #
+        # # Aceleração Tangencial (A) - Rate of change of tangential velocity
+        # if len(tangential_velocity) > 1:
+        #     tangential_acceleration = np.diff(tangential_velocity) / dt[1:]
+        #     features['aceleracao_tangencial_media'] = np.mean(tangential_acceleration)
+        #     features['aceleracao_tangencial_std'] = np.std(tangential_acceleration)
 
-        # Aceleração Tangencial (A) - Rate of change of tangential velocity
-        if len(tangential_velocity) > 1:
-            tangential_acceleration = np.diff(tangential_velocity) / dt[1:]
-            features['aceleracao_tangencial_media'] = np.mean(tangential_acceleration)
-            features['aceleracao_tangencial_std'] = np.std(tangential_acceleration)
-
-        return features
+        return motion_features
 
     def _extract_curvature_features(self, x: np.ndarray, y: np.ndarray, t: np.ndarray) -> Dict[str, float]:
         """
@@ -442,19 +426,19 @@ class MouseDynamicsExtractor:
         # Assimetria (Skewness) - 3rd standardized moment
         # Measures asymmetry of the distribution
 
-        if len(x) > 2:
-            features['assimetria_x'] = stats.skew(x)
-            features['assimetria_y'] = stats.skew(y)
-            features['assimetria_combinada'] = (features['assimetria_x'] + features['assimetria_y']) / 2
+        # if len(x) > 2:
+        #     features['assimetria_x'] = stats.skew(x)
+        #     features['assimetria_y'] = stats.skew(y)
+        #     features['assimetria_combinada'] = (features['assimetria_x'] + features['assimetria_y']) / 2
 
         # === KURTOSIS ===
         # Curtose (Kurtosis) - 4th standardized moment
         # Measures "tailedness" of the distribution
 
-        if len(x) > 3:
-            features['curtose_x'] = stats.kurtosis(x)
-            features['curtose_y'] = stats.kurtosis(y)
-            features['curtose_combinada'] = (features['curtose_x'] + features['curtose_y']) / 2
+        # if len(x) > 3:
+        #     features['curtose_x'] = stats.kurtosis(x)
+        #     features['curtose_y'] = stats.kurtosis(y)
+        #     features['curtose_combinada'] = (features['curtose_x'] + features['curtose_y']) / 2
 
         return features
 
@@ -590,65 +574,3 @@ class MouseDynamicsExtractor:
         angles = np.arccos(cos_angle)
 
         return angles
-
-
-# ============================================================================
-# USAGE EXAMPLE
-# ============================================================================
-
-if __name__ == "__main__":
-    # Create sample trajectory data
-    np.random.seed(42)
-    n_points = 100
-    t = np.linspace(0, 5, n_points)
-
-    # Simulate a curved trajectory with some noise
-    x = t * 20 + 5 * np.sin(t * 2) + np.random.normal(0, 0.5, n_points)
-    y = t * 15 + 3 * np.cos(t * 3) + np.random.normal(0, 0.5, n_points)
-
-    # Create DataFrame
-    df = pd.DataFrame({
-        'timestamp': t,
-        'x': x,
-        'y': y
-    })
-
-    # Extract features
-    extractor = MouseDynamicsExtractor()
-    features = extractor.extract_features(df)
-
-    # Display results
-    print("=" * 80)
-    print("MOUSE DYNAMICS FEATURES EXTRACTED")
-    print("=" * 80)
-    print(f"\nTrajectory Statistics:")
-    print(f"  - Number of points: {len(df)}")
-    print(f"  - Duration: {features['tempo_decorrido']:.3f} seconds")
-    print(f"  - Path length: {features['distancia_percorrida']:.2f} pixels")
-    print(f"  - Straightness: {features['retidao_eficiencia']:.3f}")
-    print(f"\nTotal features extracted: {len(features)}")
-    print("\nFeature Summary:")
-    print("-" * 80)
-
-    # Group features by category
-    categories = {
-        'Spatial': ['distancia', 'comprimento', 'deslocamento', 'desvio', 'retidao',
-                   'interpolado', 'tremor', 'regularidade', 'auto_intersecao'],
-        'Temporal': ['tempo'],
-        'Velocity': ['velocidade'],
-        'Acceleration': ['aceleracao'],
-        'Curvature': ['curvatura', 'raio', 'angulo'],
-        'Statistical': ['momento', 'assimetria', 'curtose'],
-    }
-
-    for category, keywords in categories.items():
-        category_features = {k: v for k, v in features.items()
-                           if any(kw in k for kw in keywords)}
-        if category_features:
-            print(f"\n{category} Features ({len(category_features)}):")
-            for name, value in sorted(category_features.items())[:5]:  # Show first 5
-                print(f"  {name:.<50} {value:.6f}")
-            if len(category_features) > 5:
-                print(f"  ... and {len(category_features) - 5} more")
-
-    print("\n" + "=" * 80)
