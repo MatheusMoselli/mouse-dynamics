@@ -77,23 +77,21 @@ class MouseDynamicsExtractor:
             else:
                 i_df_clean = i_df
 
-            #TODO: check if there is a better way to do this
-            i_df_statistics = {
-                "mean_speed": i_df_clean["dv"].mean(),
-                "std_speed": i_df_clean["dv"].std(),
-                "max_speed": i_df_clean["dv"].max(),
-                "min_speed": i_df_clean["dv"].min(),
+            i_df_statistics = {}
 
-                "mean_x_speed": i_df_clean["dvx"].mean(),
-                "std_x_speed": i_df_clean["dvx"].std(),
-                "max_x_speed": i_df_clean["dvx"].max(),
-                "min_x_speed": i_df_clean["dvx"].min(),
+            columns = [col for col in i_df_clean.columns.tolist() if col not in  {"x", "y", "timestamp"}]
 
-                "mean_y_speed": i_df_clean["dvy"].mean(),
-                "std_y_speed": i_df_clean["dvy"].std(),
-                "max_y_speed": i_df_clean["dvy"].max(),
-                "min_y_speed": i_df_clean["dvy"].min()
-            }
+            for col_name in columns:
+                i_df_statistics[f"mean_{col_name}"] = i_df_clean[col_name].mean()
+                i_df_statistics[f"std_{col_name}"] = i_df_clean[col_name].std()
+                i_df_statistics[f"max_{col_name}"] = i_df_clean[col_name].max()
+                i_df_statistics[f"min_{col_name}"] = i_df_clean[col_name].min()
+
+            #TODO: check if I should do this in the clean df or the original (with duplicates)
+            if len(i_df_clean) >= 2:
+                i_df_statistics["acc_beginning_time"] = i_df_clean["timestamp"].iat[1] - i_df_clean["timestamp"].iat[0]
+            else:
+                i_df_statistics["acc_beginning_time"] = 0
 
             statistics_extracted_arr.append(i_df_statistics)
 
@@ -118,11 +116,13 @@ class MouseDynamicsExtractor:
         }
 
         general_features.update(self._extract_kinematic_features(x, y, t))
+        general_features.update(self._extract_temporal_features(t))
 
         #TODO: Adjust the following methods
 
+        #TODO: Add the others features from the sheets that are not present in the Minecraft official extraction
+
         # general_features.update(self._extract_spatial_features(x, y))
-        # general_features.update(self._extract_temporal_features(t))
         # general_features.update(self._extract_statistical_features(x, y))
         # general_features.update(self._extract_curvature_features(x, y, t))
 
@@ -195,16 +195,14 @@ class MouseDynamicsExtractor:
 
         These features describe timing characteristics of the mouse movement.
         """
-        features = {}
 
-        # Tempo Decorrido / Dígrafo do Mouse - Total elapsed time
-        features['tempo_decorrido'] = t[-1] - t[0] if len(t) > 1 else 0.0
+        # Elapsed time / Mouse digraph
+        temporal_features = {
+            'elapsed_time': np.concatenate(([0], np.diff(t)))
+        }
 
-        # Tempo Inicial de Aceleração - Time until acceleration starts
-        # (approximated as time to second point)
-        features['tempo_inicial_aceleracao'] = t[1] - t[0] if len(t) > 1 else 0.0
 
-        return features
+        return temporal_features
 
     def _extract_kinematic_features(self, x: np.ndarray, y: np.ndarray, t: np.ndarray) -> Dict[str, float]:
         """
@@ -216,96 +214,64 @@ class MouseDynamicsExtractor:
         :param y: the Y coordinate array
         :param t: the timestamp array
         """
+        #TODO: check literature to see if I should use the absolute values of x - x-1 and y - y-1 (std is too big)
         motion_features = {}
 
         # Calculate time differences
-        dt = np.concatenate(([0], np.diff(t)))
+        time_differences_arr = np.concatenate(([0], np.diff(t)))
 
         # Calculate spatial differences
-        dx = np.concatenate(([0], np.diff(x)))
-        dy = np.concatenate(([0], np.diff(y)))
+        x_differences_arr = np.concatenate(([0], np.diff(x)))
+        y_differences_arr = np.concatenate(([0], np.diff(y)))
 
         # The first value of the dataframe is always zero
-        #TODO: Probably there is another feature_extractions that doesnt make the first zero or make the last also zero. Check if is a good idea to parameterize this options
+        #TODO: Probably there is other feature_extractions that doesnt make the first zero or make the last also zero. Check if is a good idea to parameterize this options
 
-        # Speed magnitude {sqrt(dx*2 + dy*2) / dt}
-        # create an array of zeros the same size as dt
-        dv = np.zeros_like(dt)
-        # populate the dv variable assuring that there is no zero division
-        np.divide(np.sqrt(dx**2 + dy**2), dt, out = dv, where = dt != 0)
-        motion_features['dv'] = dv
+        # Speed magnitude {sqrt(x_differences_arr*2 + y_differences_arr*2) / time_differences_arr}
+        speed_arr = np.zeros_like(time_differences_arr)
+        np.divide(np.sqrt(x_differences_arr**2 + y_differences_arr**2), time_differences_arr, out = speed_arr, where = time_differences_arr != 0)
+        motion_features['speed'] = speed_arr
 
-        # Horizontal speed (x-axis) {dx / dt}
-        dvx = np.zeros_like(dt)
+        # Horizontal speed (x-axis) {x_differences_arr / time_differences_arr}
+        x_speed_arr = np.zeros_like(time_differences_arr)
         #TODO: check my own audio recording in my personal whatsapp group. Talk to professor about it (duplicates interfering in timestamp difference)
-        np.divide(dx, dt, out = dvx, where = dt != 0)
-        motion_features['dvx'] = dvx
+        np.divide(x_differences_arr, time_differences_arr, out = x_speed_arr, where = time_differences_arr != 0)
+        motion_features['speed_x'] = x_speed_arr
 
-        # Vertical speed (y-axis) {dy / dt}
-        dvy = np.zeros_like(dt)
-        np.divide(dy, dt, out = dvy, where = dt != 0)
-        motion_features['dvy'] = dvy
+        # Vertical speed (y-axis) {y_differences_arr / time_differences_arr}
+        y_speed_arr = np.zeros_like(time_differences_arr)
+        np.divide(y_differences_arr, time_differences_arr, out = y_speed_arr, where = time_differences_arr != 0)
+        motion_features['speed_y'] = y_speed_arr
 
         #TODO: finish the motion feature extraction
 
-        # Acceleration magnitude
-        # accelerations = np.diff(velocities) / dt[1:]
-        # motion_features['aceleracao_media'] = np.mean(accelerations)
-        # ##features['aceleracao_max'] = np.max(np.abs(accelerations))
-        # motion_features['aceleracao_std'] = np.std(accelerations)
-        #
-        # # Aceleração Horizontal (x''(t)) - Acceleration in x direction
-        # ax = np.diff(vx) / dt[1:]
-        # ##features['aceleracao_horizontal_media'] = np.mean(ax)
-        # ##features['aceleracao_horizontal_std'] = np.std(ax)
-        #
-        # # Aceleração Vertical (y''(t)) - Acceleration in y direction
-        # ay = np.diff(vy) / dt[1:]
-        # ##features['aceleracao_vertical_media'] = np.mean(ay)
-        # ##features['aceleracao_vertical_std'] = np.std(ay)
-        #
-        # # === JERK FEATURES (rate of change of acceleration) ===
-        #
-        # if len(accelerations) > 1:
-        #     jerk = np.diff(accelerations) / dt[2:]
-        #     motion_features['saculejo_tangencial_media'] = np.mean(jerk)
-        #     motion_features['saculejo_tangencial_std'] = np.std(jerk)
+        # Acceleration magnitude {speed_difference_arr / time_differences_arr}
+        #TODO: talk to professor: in the original dataset, they calculate the acceleration wrong: dt / dv
+        speed_difference_arr = np.concatenate(([0], np.diff(speed_arr)))
 
-        # === DISTANCE-BASED VELOCITY AND ACCELERATION ===
-        #
-        # distances = np.sqrt(dx**2 + dy**2)
-        # cumulative_dist = np.concatenate([[0], np.cumsum(distances)])
-        #
-        # if len(cumulative_dist) > 2:
-        #     # Velocidade em Função da Distância
-        #     features['velocidade_funcao_distancia_media'] = np.mean(velocities)
-        #
-        #     # Aceleração X em Função da Distância
-        #     if len(vx) > 1:
-        #         dist_segments = distances[:-1]
-        #         dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
-        #         ax_dist = np.diff(vx) / dist_segments
-        #         features['aceleracao_x_funcao_distancia_media'] = np.mean(ax_dist)
-        #
-        #     # Aceleração Y em Função da Distância
-        #     if len(vy) > 1:
-        #         dist_segments = distances[:-1]
-        #         dist_segments = np.where(dist_segments == 0, 1e-10, dist_segments)
-        #         ay_dist = np.diff(vy) / dist_segments
-        #         features['aceleracao_y_funcao_distancia_media'] = np.mean(ay_dist)
+        acceleration_arr = np.zeros_like(time_differences_arr)
+        np.divide(speed_difference_arr, time_differences_arr, out = acceleration_arr, where = time_differences_arr != 0)
+        motion_features['acceleration'] = acceleration_arr
 
-        # === TANGENTIAL MOTION ===
+        # Horizontal Acceleration  (x-axis) {x_speed_difference_arr / time_differences_arr}
+        x_speed_difference_arr = np.concatenate(([0], np.diff(x_speed_arr)))
 
-        # Velocidade Tangencial (Vt) - Speed along the curve
-        # tangential_velocity = velocities
-        # features['velocidade_tangencial_media'] = np.mean(tangential_velocity)
-        # features['velocidade_tangencial_std'] = np.std(tangential_velocity)
-        #
-        # # Aceleração Tangencial (A) - Rate of change of tangential velocity
-        # if len(tangential_velocity) > 1:
-        #     tangential_acceleration = np.diff(tangential_velocity) / dt[1:]
-        #     features['aceleracao_tangencial_media'] = np.mean(tangential_acceleration)
-        #     features['aceleracao_tangencial_std'] = np.std(tangential_acceleration)
+        x_acceleration = np.zeros_like(time_differences_arr)
+        np.divide(x_speed_difference_arr, time_differences_arr, out = x_acceleration, where = time_differences_arr != 0)
+        motion_features['acceleration_x'] = x_acceleration
+
+        # Vertical Acceleration  (y-axis) {y_speed_difference_arr / time_differences_arr}
+        y_speed_difference_arr = np.concatenate(([0], np.diff(y_speed_arr)))
+
+        y_acceleration = np.zeros_like(time_differences_arr)
+        np.divide(y_speed_difference_arr, time_differences_arr, out = y_acceleration, where = time_differences_arr != 0)
+        motion_features['acceleration_y'] = y_acceleration
+
+        acceleration_difference_arr = np.concatenate(([0], np.diff(acceleration_arr)))
+
+        jerk = np.zeros_like(time_differences_arr)
+        np.divide(acceleration_difference_arr, time_differences_arr, out = jerk, where = time_differences_arr != 0)
+        motion_features['jerk'] = jerk
 
         return motion_features
 
