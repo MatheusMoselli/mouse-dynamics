@@ -117,6 +117,7 @@ class MouseDynamicsExtractor:
 
         general_features.update(self._extract_kinematic_features(x, y, t))
         general_features.update(self._extract_temporal_features(t))
+        general_features.update(self._extract_curvature_features(x, y, t))
 
         #TODO: Adjust the following methods
 
@@ -124,7 +125,6 @@ class MouseDynamicsExtractor:
 
         # general_features.update(self._extract_spatial_features(x, y))
         # general_features.update(self._extract_statistical_features(x, y))
-        # general_features.update(self._extract_curvature_features(x, y, t))
 
         return pd.DataFrame(general_features)
 
@@ -267,11 +267,21 @@ class MouseDynamicsExtractor:
         np.divide(y_speed_difference_arr, time_differences_arr, out = y_acceleration, where = time_differences_arr != 0)
         motion_features['acceleration_y'] = y_acceleration
 
+        y_acceleration_difference_arr = np.concatenate(([0], np.diff(y_acceleration)))
+        x_acceleration_difference_arr = np.concatenate(([0], np.diff(x_acceleration)))
+
         acceleration_difference_arr = np.concatenate(([0], np.diff(acceleration_arr)))
 
         jerk = np.zeros_like(time_differences_arr)
         np.divide(acceleration_difference_arr, time_differences_arr, out = jerk, where = time_differences_arr != 0)
         motion_features['jerk'] = jerk
+
+        curvatures = np.zeros_like(time_differences_arr)
+        curvature_upper_part = x_speed_difference_arr*y_acceleration_difference_arr - y_speed_difference_arr*x_acceleration_difference_arr
+        curvature_lower_part = np.power(x_speed_difference_arr**2 + y_speed_difference_arr**2, 3/2)
+
+        np.divide(curvature_upper_part, curvature_lower_part, out = curvatures, where = curvature_lower_part != 0)
+        motion_features['curvature'] = curvatures
 
         return motion_features
 
@@ -280,91 +290,102 @@ class MouseDynamicsExtractor:
         Extract curvature-related features.
 
         These features describe how the trajectory curves and changes direction.
-        Curvature is calculated using the formula: κ = |x'y'' - y'x''| / (x'² + y'²)^(3/2)
         """
-        features = {}
+        curvature_features = {}
+        # Calculate time differences
+
+        # Calculate spatial differences
+        x_differences_arr = np.concatenate(([0], np.diff(x)))
+        y_differences_arr = np.concatenate(([0], np.diff(y)))
+
+        distances = np.concatenate(([0], np.sqrt(x_differences_arr**2 + y_differences_arr**2)))
+        distances_differences_arr = np.diff(distances)
+
+        # Movement angle - Tangent angle relative to x-axis
+        slopes = np.zeros_like(x_differences_arr)
+        np.divide(y_differences_arr, x_differences_arr, out = slopes, where = x_differences_arr != 0)
+
+        radian_angles = np.arctan(slopes)
+        curvature_features['angle_radians'] = radian_angles
+        curvature_features['angle_degrees'] = np.degrees(radian_angles)
+
 
         # Calculate time differences (avoid division by zero)
-        dt = np.diff(t)
-        dt = np.where(dt == 0, 1e-10, dt)
+        # dt = np.diff(t)
+        # dt = np.where(dt == 0, 1e-10, dt)
+        #
+        # if len(x) < 3:
+        #     # Not enough points for curvature calculation
+        #     features['curvatura_media'] = 0.0
+        #     features['velocidade_curvatura_media'] = 0.0
+        #     features['taxa_curvatura_media'] = 0.0
+        #     features['angulo_movimento_medio'] = 0.0
+        #     features['raio_curvatura_medio'] = 0.0
+        #     features['velocidade_angular_media'] = 0.0
+        #     features['angulos_totais_energia_curvatura'] = 0.0
+        #     return features
+        #
+        # # First derivatives (velocity components)
+        # dx = np.diff(x)
+        # dy = np.diff(y)
+        #
+        # # Second derivatives (acceleration components)
+        # if len(x) > 2:
+        #     ddx = np.diff(dx) / dt[1:]
+        #     ddy = np.diff(dy) / dt[1:]
+        #
+        #     # Velocity components at points where we have acceleration
+        #     vx = dx[1:] / dt[1:]
+        #     vy = dy[1:] / dt[1:]
+        #
+        #     # Curvature calculation: κ = |x'y'' - y'x''| / (x'² + y'²)^(3/2)
+        #     numerator = np.abs(vx * ddy - vy * ddx)
+        #     denominator = (vx**2 + vy**2)**1.5
+        #     denominator = np.where(denominator == 0, 1e-10, denominator)
+        #
+        #     curvature = numerator / denominator
+        #
+        #     # === CURVATURE STATISTICS ===
+        #
+        #     features['curvatura_media'] = np.mean(curvature)
+        #     features['curvatura_std'] = np.std(curvature)
+        #     features['curvatura_max'] = np.max(curvature)
+        #
+        #     # Raio de Curvatura médio (radius of curvature = 1/κ)
+        #     radii = 1.0 / (curvature + 1e-10)
+        #     # Filter out extreme values for stability
+        #     features['raio_curvatura_medio'] = np.mean(radii[radii < 1e8])
+        #
+        #     # Velocidade de Curvatura (Vcurve) - Rate of change of curvature magnitude
+        #     if len(curvature) > 1:
+        #         vcurve = np.sqrt(curvature[:-1]**2 + curvature[1:]**2)
+        #         features['velocidade_curvatura_media'] = np.mean(vcurve)
+        #
+        #     # Taxa de Curvatura - Time derivative of curvature
+        #     if len(curvature) > 1:
+        #         dcurvature = np.diff(curvature) / dt[2:]
+        #         features['taxa_curvatura_media'] = np.mean(np.abs(dcurvature))
+        #
+        #     # Ângulos Totais / Energia de Curvatura - Sum of absolute curvatures
+        #     features['angulos_totais_energia_curvatura'] = np.sum(np.abs(curvature))
+        #
+        # # === ANGULAR FEATURES ===
+        #
+        # # Velocidade Angular (ωi) - Rate of change of angle
+        # if len(angles) > 1:
+        #     angular_velocity = np.diff(angles) / dt[1:]
+        #     # Handle angle wrapping (convert to [-π, π] range)
+        #     angular_velocity = np.arctan2(np.sin(angular_velocity), np.cos(angular_velocity))
+        #     features['velocidade_angular_media'] = np.mean(np.abs(angular_velocity))
+        #     features['velocidade_angular_std'] = np.std(angular_velocity)
+        #
+        # # Ângulo (γ) - Lei dos Cossenos - Angle between consecutive segments
+        # if len(x) > 2:
+        #     angles_cosine = self._calculate_cosine_angles(x, y)
+        #     features['angulo_lei_cossenos_medio'] = np.mean(angles_cosine)
+        #     features['angulo_lei_cossenos_std'] = np.std(angles_cosine)
 
-        if len(x) < 3:
-            # Not enough points for curvature calculation
-            features['curvatura_media'] = 0.0
-            features['velocidade_curvatura_media'] = 0.0
-            features['taxa_curvatura_media'] = 0.0
-            features['angulo_movimento_medio'] = 0.0
-            features['raio_curvatura_medio'] = 0.0
-            features['velocidade_angular_media'] = 0.0
-            features['angulos_totais_energia_curvatura'] = 0.0
-            return features
-
-        # First derivatives (velocity components)
-        dx = np.diff(x)
-        dy = np.diff(y)
-
-        # Second derivatives (acceleration components)
-        if len(x) > 2:
-            ddx = np.diff(dx) / dt[1:]
-            ddy = np.diff(dy) / dt[1:]
-
-            # Velocity components at points where we have acceleration
-            vx = dx[1:] / dt[1:]
-            vy = dy[1:] / dt[1:]
-
-            # Curvature calculation: κ = |x'y'' - y'x''| / (x'² + y'²)^(3/2)
-            numerator = np.abs(vx * ddy - vy * ddx)
-            denominator = (vx**2 + vy**2)**1.5
-            denominator = np.where(denominator == 0, 1e-10, denominator)
-
-            curvature = numerator / denominator
-
-            # === CURVATURE STATISTICS ===
-
-            features['curvatura_media'] = np.mean(curvature)
-            features['curvatura_std'] = np.std(curvature)
-            features['curvatura_max'] = np.max(curvature)
-
-            # Raio de Curvatura médio (radius of curvature = 1/κ)
-            radii = 1.0 / (curvature + 1e-10)
-            # Filter out extreme values for stability
-            features['raio_curvatura_medio'] = np.mean(radii[radii < 1e8])
-
-            # Velocidade de Curvatura (Vcurve) - Rate of change of curvature magnitude
-            if len(curvature) > 1:
-                vcurve = np.sqrt(curvature[:-1]**2 + curvature[1:]**2)
-                features['velocidade_curvatura_media'] = np.mean(vcurve)
-
-            # Taxa de Curvatura - Time derivative of curvature
-            if len(curvature) > 1:
-                dcurvature = np.diff(curvature) / dt[2:]
-                features['taxa_curvatura_media'] = np.mean(np.abs(dcurvature))
-
-            # Ângulos Totais / Energia de Curvatura - Sum of absolute curvatures
-            features['angulos_totais_energia_curvatura'] = np.sum(np.abs(curvature))
-
-        # === ANGULAR FEATURES ===
-
-        # Ângulo do Movimento (α) - Tangent angle relative to x-axis
-        angles = np.arctan2(dy, dx)
-        features['angulo_movimento_medio'] = np.mean(angles)
-        features['angulo_movimento_std'] = np.std(angles)
-
-        # Velocidade Angular (ωi) - Rate of change of angle
-        if len(angles) > 1:
-            angular_velocity = np.diff(angles) / dt[1:]
-            # Handle angle wrapping (convert to [-π, π] range)
-            angular_velocity = np.arctan2(np.sin(angular_velocity), np.cos(angular_velocity))
-            features['velocidade_angular_media'] = np.mean(np.abs(angular_velocity))
-            features['velocidade_angular_std'] = np.std(angular_velocity)
-
-        # Ângulo (γ) - Lei dos Cossenos - Angle between consecutive segments
-        if len(x) > 2:
-            angles_cosine = self._calculate_cosine_angles(x, y)
-            features['angulo_lei_cossenos_medio'] = np.mean(angles_cosine)
-            features['angulo_lei_cossenos_std'] = np.std(angles_cosine)
-
-        return features
+        return curvature_features
 
     def _extract_statistical_features(self, x: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """
