@@ -2,6 +2,8 @@
 
 from .constants import DatasetsNames
 
+from .splitters import MouseDynamicsSplitter
+
 from .loaders import (
     BaseDataLoader,
     BalabitLoader,
@@ -27,5 +29,6 @@ __all__ = [
     "BalabitLoader",
     "MinecraftLoader",
     "load_dataset",
-    "MouseDynamicsExtractor"
+    "MouseDynamicsExtractor",
+    "MouseDynamicsSplitter"
 ]

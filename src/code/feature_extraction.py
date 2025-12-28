@@ -1,5 +1,8 @@
+from pandas import DataFrame
+
 from src.data import load_dataset, DatasetsNames, MouseDynamicsExtractor
 from pathlib import Path
+import pandas as pd
 
 if __name__ == "__main__":
     # Initializing the actors
@@ -8,11 +11,8 @@ if __name__ == "__main__":
     data_by_users = load_dataset(DatasetsNames.MINECRAFT)
     #TODO: Convert this in a builder, so I can do load_dataset().preprocess().extract_features()
 
-    # Preprocessing the data
+    # Extracting the features
     for user_id, df in data_by_users.items():
-        if user_id != 0:
-            break
-
         extractor = MouseDynamicsExtractor(df, remove_duplicate=True)
         feature_extracted_df = extractor.extract_features()
 
