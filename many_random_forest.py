@@ -10,7 +10,7 @@ AMOUNT_TRAINING_OTHER_USERS_DATA = 2_778
 
 def filter_testing(main_class, main_user_size, other_user_size):
     # Equivalent to the master10Test_Extracted
-    training_df = pd.read_csv("datasets/testing/data.csv")
+    training_df = pd.read_csv("datasets/validation/test.csv")
 
     main_df = training_df[training_df['class'] == main_class].head(main_user_size)
     dfs = [main_df]
@@ -26,7 +26,7 @@ def filter_testing(main_class, main_user_size, other_user_size):
 
 def filter_training(main_class, main_user_size, other_user_size):
     # Equivalent to the master10Train_Extracted
-    training_df = pd.read_csv("datasets/training/data.csv")
+    training_df = pd.read_csv("datasets/validation/train.csv")
 
     main_df = training_df[training_df['class'] == main_class].head(main_user_size)
     dfs = [main_df]
@@ -104,5 +104,5 @@ def scenario_a():
         print(classification_report(y_test, y_pred))
 
 if __name__ == "__main__":
-    # scenario_a()
-    scenario_b()
+    scenario_a()
+    # scenario_b()

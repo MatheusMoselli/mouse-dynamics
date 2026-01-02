@@ -11,8 +11,13 @@ from .loaders import (
     load_dataset,
 )
 
-from .extractors import (
-    MouseDynamicsExtractor
+from .preprocessors import (
+    MinecraftPreprocessor,
+    BasePreprocessor
+)
+
+from .classifiers import (
+    RandomForestClassifier
 )
 
 # from .preprocessors import (
@@ -29,6 +34,8 @@ __all__ = [
     "BalabitLoader",
     "MinecraftLoader",
     "load_dataset",
-    "MouseDynamicsExtractor",
-    "MouseDynamicsSplitter"
+    "BasePreprocessor",
+    "MinecraftPreprocessor",
+    "MouseDynamicsSplitter",
+    "RandomForestClassifier"
 ]

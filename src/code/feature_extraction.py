@@ -1,6 +1,6 @@
 from pandas import DataFrame
 
-from src.data import load_dataset, DatasetsNames, MouseDynamicsExtractor
+from src.data import load_dataset, DatasetsNames, MinecraftPreprocessor
 from pathlib import Path
 import pandas as pd
 
@@ -13,8 +13,8 @@ if __name__ == "__main__":
 
     # Extracting the features
     for user_id, df in data_by_users.items():
-        extractor = MouseDynamicsExtractor(df, remove_duplicate=True)
-        feature_extracted_df = extractor.extract_features()
+        extractor = MinecraftPreprocessor(df, remove_duplicate=True)
+        feature_extracted_df = extractor.preprocess()
 
         file_path_str = f"../../datasets/features/minecraft/user{user_id}.xlsx"
 

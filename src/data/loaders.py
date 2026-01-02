@@ -3,15 +3,12 @@ Data loaders for different mouse dynamics datasets.
 Handles various formats and structures of behavioral biometric data.
 """
 
-import pandas as pd
-import numpy as np
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union, Literal
+from typing import Dict, Optional
 from abc import ABC, abstractmethod
-import json
-import logging
-
 from src.data import DatasetsNames
+import pandas as pd
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +28,7 @@ class BaseDataLoader(ABC):
                              x_col_name: str, y_col_name: str, time_col_name: str,
                              user_id_col_name: Optional[str] = None,
                              action_col_name: Optional[str] = None) -> pd.DataFrame:
-        """Standardize column names to [x, y, timestamp, action, session_id]."""
+        """Standardize column names to [x, y, timestamp, action]."""
         renamed = df.rename(columns={
             x_col_name: 'x',
             y_col_name: 'y',
@@ -150,38 +147,9 @@ class MinecraftLoader(BaseDataLoader):
         """
         dataframes_by_users = {}
 
-        # Entering the 10extracted folder
-        self.data_path = self.data_path / "40raw"
-
-        # for csv_file in sorted(self.data_path.glob("*.csv")):
-        #     # Only use the SubjectX_raw.csv files
-        #     if not "raw" in csv_file.stem:
-        #         continue
-        #
-        #     logger.info(f"Loading {csv_file.name}")
-        #
-        #     df = pd.read_csv(csv_file)
-        #
-        #     user_id = csv_file.stem.replace("Subject", "").split("_")[0]
-        #
-        #     # Standardize columns
-        #     standardized = self._standardize_columns(
-        #         df,
-        #         x_col_name='X',
-        #         y_col_name='Y',
-        #         time_col_name='Timestamp',
-        #         action_col_name='Button Pressed'
-        #     )
-        #
-        #     if user_id in dataframes_by_users:
-        #         dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized])
-        #     else:
-        #         dataframes_by_users[user_id] = standardized
-
-        # Only use the SubjectX_raw.csv files
-
         filename = "masterTrain"
-        df = pd.read_csv(self.data_path / "masterTrain.csv")
+        self.data_path = self.data_path / "40raw" / "masterTrain.csv"
+        df = pd.read_csv(self.data_path)
 
         logger.info(f"Loading {filename}")
 
