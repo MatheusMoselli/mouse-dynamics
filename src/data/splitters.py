@@ -1,27 +1,33 @@
-import pandas as pd
+from typing import Dict
 from pathlib import Path
-from pandas import DataFrame
+import pandas as pd
 
-class MouseDynamicsSplitter:
+class BaseSplitter:
     """
     Split the dataset into train/test sets.
     The features should already be extracted at this point
     """
 
-    def split(self):
-        feature_extracted_csv_path = "../../datasets/features"
-        main_users_features = {}
-        support_users_features = {}
+    def split(self, dataframes_by_users: Dict[str, pd.DataFrame], is_debug=False) -> Dict[str, pd.DataFrame]:
+        """
+        Split the dataset into train/test sets.
+        :param dataframes_by_users:  the list of datasets to be split
+        :param is_debug: If true, will save a parquet file for each user, with its features extracted
+        :return: The list of train/test sets
+        """
+        pass
 
-        for csv_file in Path(feature_extracted_csv_path).glob("*.xlsx"):
-            user_df = pd.read_excel(csv_file)
-            user_id = csv_file.stem.replace("user", "")
+class MouseDynamicsSplitter(BaseSplitter):
+    """
+    Split the dataset into train/test sets.
+    The features should already be extracted at this point
+    """
 
-            if int(user_id) < 15:
-                main_users_features[user_id] = DataFrame(user_df)
-            else:
-                support_users_features[user_id] = DataFrame(user_df)
+    def split(self, dataframes_by_users: Dict[str, pd.DataFrame], is_debug=False) -> Dict[str, pd.DataFrame]:
+        main_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) < 15}
+        support_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) >= 15}
 
+        split_dfs_by_users = {}
         for main_user_id, main_user_df in main_users_features.items():
             true_user_training_df = main_user_df.copy()
             true_user_training_df["authentic"] = 1
@@ -39,12 +45,17 @@ class MouseDynamicsSplitter:
                 ith_false_user_training_df["authentic"] = 0
                 all_training_dfs.append(ith_false_user_training_df)
 
-            file_path_str = f"../../datasets/training/user{main_user_id}.xlsx"
-
-            file = Path(file_path_str)
-            file.unlink(missing_ok=True)
-
             final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            final_training_df.to_excel(file_path_str, index=False)
+            split_dfs_by_users[main_user_id] = final_training_df
+
+            if is_debug:
+                file_path_str = f"../../datasets/training/user{main_user_id}.parquet"
+
+                file = Path(file_path_str)
+                file.unlink(missing_ok=True)
 
 
+                final_training_df.to_parquet(file_path_str, index=False)
+
+
+        return split_dfs_by_users

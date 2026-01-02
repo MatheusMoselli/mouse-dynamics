@@ -2,11 +2,15 @@
 Orchestrator for code centralization.
 Keep all the logic hidden from the result analysis.
 """
-from src.data import DatasetsNames, BasePreprocessor, load_dataset
-
+from src.data import (
+    DatasetsNames,
+    BasePreprocessor,
+    BaseSplitter,
+    load_dataset
+)
 
 class Orchestrator:
-    def __init__(self, preprocessor: BasePreprocessor, splitter, fitter, is_debug = False):
+    def __init__(self, preprocessor: BasePreprocessor, splitter: BaseSplitter, fitter, is_debug = False):
         self.preprocessor = preprocessor
         self.splitter = splitter
         self.fitter = fitter
@@ -21,7 +25,7 @@ class Orchestrator:
         return self
 
     def _split(self):
-        self.dataframes_by_users = self.splitter.split(self.dataframes_by_users)
+        self.dataframes_by_users = self.splitter.split(self.dataframes_by_users, is_debug=self._is_debug)
         return self
 
     def _fit(self):

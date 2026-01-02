@@ -2,7 +2,10 @@
 
 from .constants import DatasetsNames
 
-from .splitters import MouseDynamicsSplitter
+from .splitters import (
+    MouseDynamicsSplitter,
+    BaseSplitter
+)
 
 from .loaders import (
     BaseDataLoader,
@@ -36,6 +39,7 @@ __all__ = [
     "load_dataset",
     "BasePreprocessor",
     "MinecraftPreprocessor",
+    "BaseSplitter",
     "MouseDynamicsSplitter",
     "RandomForestClassifier"
 ]
