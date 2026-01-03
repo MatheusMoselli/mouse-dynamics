@@ -20,16 +20,11 @@ from .preprocessors import (
 )
 
 from .classifiers import (
-    RandomForestClassifier
+    RandomForestClassifier,
+    BaseClassifier
 )
 
-# from .preprocessors import (
-#     MouseDynamicsPreprocessor,
-#     TrajectorySegmenter,
-#     OutlierRemover,
-# )
-# from .augmentation import MouseDynamicsAugmenter
-# from .validation import DataValidator
+from .orchestrator import Orchestrator
 
 __all__ = [
     "DatasetsNames",
@@ -41,5 +36,7 @@ __all__ = [
     "MinecraftPreprocessor",
     "BaseSplitter",
     "MouseDynamicsSplitter",
-    "RandomForestClassifier"
+    "BaseClassifier",
+    "RandomForestClassifier",
+    "Orchestrator"
 ]

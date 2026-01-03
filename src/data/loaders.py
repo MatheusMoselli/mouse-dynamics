@@ -105,9 +105,9 @@ class BalabitLoader(BaseDataLoader):
                 )
 
                 if user_id in dataframes_by_users:
-                    dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized])
+                    dataframes_by_users[str(user_id)] = pd.concat([dataframes_by_users[str(user_id)], standardized])
                 else:
-                    dataframes_by_users[user_id] = standardized
+                    dataframes_by_users[str(user_id)] = standardized
 
         logger.info(f"Loaded {len(dataframes_by_users)} users from Balabit dataset")
         return dataframes_by_users
@@ -167,9 +167,9 @@ class MinecraftLoader(BaseDataLoader):
 
         for user_id, user_df in standardized.groupby("user_id"):
             if user_id in dataframes_by_users:
-                dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], user_df])
+                dataframes_by_users[str(user_id)] = pd.concat([dataframes_by_users[str(user_id)], user_df])
             else:
-                dataframes_by_users[user_id] = user_df
+                dataframes_by_users[str(user_id)] = user_df
 
         logger.info(f"Loaded {len(dataframes_by_users)} users from Minecraft dataset")
         return dataframes_by_users

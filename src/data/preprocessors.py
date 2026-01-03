@@ -136,6 +136,7 @@ class MinecraftPreprocessor(BasePreprocessor):
             statistical_df = self._extract_statistical_info_from_df(general_features_df)
             dataframes_with_features_by_users[user_id] = statistical_df
 
+            logger.info(f"User {user_id} statistical features extracted")
             if is_debug:
                 file_path_str = f"../../datasets/features/minecraft/user{user_id}.parquet"
 
