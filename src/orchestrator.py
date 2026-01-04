@@ -2,14 +2,13 @@
 Orchestrator for code centralization.
 Keep all the logic hidden from the result analysis.
 """
-from src.data import (
-    DatasetsNames,
-    BasePreprocessor,
-    BaseSplitter,
-    load_dataset, BaseClassifier
-)
-
+from src.classifiers import BaseClassifier
+from src.dataset_loaders import load_dataset
+from src.preprocessors import BasePreprocessor
+from src.splitters import BaseSplitter
+from src.utils import DatasetsNames
 import logging
+
 
 logger = logging.getLogger(__name__)
 

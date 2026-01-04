@@ -1,11 +1,8 @@
-from src.data import (
-    Orchestrator,
-    MinecraftPreprocessor,
-    MouseDynamicsSplitter,
-    RandomForestClassifier,
-    DatasetsNames
-)
-
+from src.classifiers import RandomForestClassifier
+from src.orchestrator import Orchestrator
+from src.preprocessors import MinecraftPreprocessor
+from src.splitters import MouseDynamicsSplitter
+from src.utils import DatasetsNames
 import logging
 import sys
 

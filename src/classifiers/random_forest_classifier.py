@@ -1,31 +1,20 @@
 """
-Base classifier for better abstraction and dependency injection
+    A random forest is a meta estimator that fits a number of decision tree
+    classifiers on various subsamples of the dataset and uses averaging
+    to improve the predictive accuracy and control over-fitting.
+    Trees in the forest use the best split strategy.
+    see: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
 """
 from typing import Dict
 from sklearn.ensemble import RandomForestClassifier as SkLearnRandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-from abc import ABC, abstractmethod
-import pandas as pd
-
-
-class BaseClassifier(ABC):
-    """
-    Abstraction for all classifiers.
-    """
-
-    @abstractmethod
-    def fit (self, dataframes_by_users: Dict[str, pd.DataFrame]):
-        """
-        Fit the user`s datas into the desired classifiers, printing the results in the console.
-
-        :param dataframes_by_users: The user`s dataframes.
-        """
-        pass
+from src.classifiers import BaseClassifier
+from pandas import DataFrame
 
 class RandomForestClassifier(BaseClassifier):
     """
-    Random Forest Classifier.
+    Custom Random Forest Classifier following the project pattern
     """
 
     def __init__(self):
@@ -36,13 +25,12 @@ class RandomForestClassifier(BaseClassifier):
             n_jobs=-2
         )
 
-    def fit(self, dataframes_by_users: Dict[str, pd.DataFrame]):
+    def fit(self, dataframes_by_users: Dict[str, DataFrame]):
         """
         Fit the user`s datas into the desired classifiers, printing the results in the console.
 
         :param dataframes_by_users: The user`s dataframes.
         """
-
         for user_id, df in dataframes_by_users.items():
             x = df.copy().drop(columns=["authentic"]).dropna()
             y = df.copy().dropna()["authentic"]

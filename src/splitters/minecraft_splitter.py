@@ -1,21 +1,14 @@
+"""
+Splitting the data following the `Continuous Authentication Using Mouse Movements,
+Machine Learning, and Minecraft` Mouse Dynamics dataset.
+There will be the same amount of authentic data and unauthentic. Also, the unauthentic data will be populated
+by taking the same amount of data from each of the other users (so if there are other 15 users, each will be
+responsible for 1/15 of the unauthentic data.
+"""
+from src.splitters import BaseSplitter
 from typing import Dict
 from pathlib import Path
 import pandas as pd
-
-class BaseSplitter:
-    """
-    Split the dataset into train/test sets.
-    The features should already be extracted at this point
-    """
-
-    def split(self, dataframes_by_users: Dict[str, pd.DataFrame], is_debug=False) -> Dict[str, pd.DataFrame]:
-        """
-        Split the dataset into train/test sets.
-        :param dataframes_by_users:  the list of datasets to be split
-        :param is_debug: If true, will save a parquet file for each user, with its features extracted
-        :return: The list of train/test sets
-        """
-        pass
 
 class MouseDynamicsSplitter(BaseSplitter):
     """
