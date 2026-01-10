@@ -1,8 +1,8 @@
-from src.classifiers import RandomForestClassifier
+from src.classifiers import EnumClassifiers
+from src.dataset_loaders import EnumDatasets
 from src.orchestrator import Orchestrator
-from src.preprocessors import MinecraftPreprocessor
-from src.splitters import MouseDynamicsSplitter
-from src.utils import DatasetsNames
+from src.preprocessors import EnumPreprocessors
+from src.splitters import EnumSplitters
 import logging
 import sys
 
@@ -20,9 +20,11 @@ root.setLevel(logging.INFO)
 
 if __name__ == "__main__":
     orchestrator = Orchestrator(
-        preprocessor=MinecraftPreprocessor(),
-        splitter=MouseDynamicsSplitter(),
-        classifier=RandomForestClassifier(),
+        dataset=EnumDatasets.MINECRAFT,
+        splitter=EnumSplitters.MINECRAFT,
+        classifier=EnumClassifiers.RANDOM_FOREST,
+        preprocessor=EnumPreprocessors.MINECRAFT,
+        is_debug=True
     )
 
-    orchestrator.run(DatasetsNames.MINECRAFT)
+    orchestrator.run()

@@ -18,15 +18,20 @@ class BasePreprocessor(ABC):
     The extractor can process trajectories in sequential windows, extracting features
     from each window to create a sequence of feature vectors.
     """
+
+    def __init__(self, is_debug: bool = False):
+        """
+        Class initialization.
+        :param is_debug: Is the classifier being run in debug mode.
+        """
+        self.is_debug = is_debug
+
     @abstractmethod
     def preprocess(self,
                    dataframes_by_users: Dict[str, pd.DataFrame],
-                   curvature_threshold: float = 0.0005,
-                   is_debug: bool = False) -> Dict[str, pd.DataFrame]:
+                   curvature_threshold: float = 0.0005) -> Dict[str, pd.DataFrame]:
         """
         Preprocess all the dataframes by user
-
-        :param is_debug: If true, will save a parquet file for each user, with its features extracted
         :param dataframes_by_users: The users standardized dataframes
         :param curvature_threshold: Threshold for detecting critical curvature points (THc)
 

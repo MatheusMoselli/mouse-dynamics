@@ -19,6 +19,8 @@ class RandomForestClassifier(BaseClassifier):
 
     def __init__(self):
         # Create the model
+        super().__init__()
+
         self.model = SkLearnRandomForestClassifier(
             n_estimators=200,
             random_state=42,

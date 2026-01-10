@@ -10,13 +10,13 @@ from typing import Dict
 from pathlib import Path
 import pandas as pd
 
-class MouseDynamicsSplitter(BaseSplitter):
+class MinecraftSplitter(BaseSplitter):
     """
     Split the dataset into train/test sets.
     The features should already be extracted at this point
     """
 
-    def split(self, dataframes_by_users: Dict[str, pd.DataFrame], is_debug=False) -> Dict[str, pd.DataFrame]:
+    def split(self, dataframes_by_users: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         main_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) < 15}
         support_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) >= 15}
 
@@ -41,7 +41,7 @@ class MouseDynamicsSplitter(BaseSplitter):
             final_training_df = pd.concat(all_training_dfs, ignore_index=True)
             split_dfs_by_users[main_user_id] = final_training_df
 
-            if is_debug:
+            if self.is_debug:
                 file_path_str = f"../../datasets/training/user{main_user_id}.parquet"
 
                 file = Path(file_path_str)

@@ -9,6 +9,12 @@ class BaseClassifier(ABC):
     """
     Abstraction for all classifiers.
     """
+    def __init__(self, is_debug: bool = False):
+        """
+        Class initialization.
+        :param is_debug: Is the classifier being run in debug mode.
+        """
+        self.is_debug = is_debug
 
     @abstractmethod
     def fit (self, dataframes_by_users: Dict[str, DataFrame]):

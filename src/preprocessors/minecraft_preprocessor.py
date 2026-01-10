@@ -24,12 +24,10 @@ class MinecraftPreprocessor(BasePreprocessor):
 
     def preprocess(self,
                    dataframes_by_users: Dict[str, pd.DataFrame],
-                   curvature_threshold: float = 0.0005,
-                   is_debug: bool = False) -> Dict[str, pd.DataFrame]:
+                   curvature_threshold: float = 0.0005) -> Dict[str, pd.DataFrame]:
         """
         Preprocess all the dataframes by user
 
-        :param is_debug: If true, will save a parquet file for each user, with its features extracted
         :param dataframes_by_users: The users standardized dataframes
         :param curvature_threshold: Threshold for detecting critical curvature points (THc)
 
@@ -44,7 +42,7 @@ class MinecraftPreprocessor(BasePreprocessor):
             dataframes_with_features_by_users[user_id] = statistical_df
 
             logger.info(f"User {user_id} statistical features extracted")
-            if is_debug:
+            if self.is_debug:
                 file_path_str = f"../../datasets/features/minecraft/user{user_id}.parquet"
 
                 file = Path(file_path_str)

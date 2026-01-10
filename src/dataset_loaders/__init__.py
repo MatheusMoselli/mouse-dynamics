@@ -1,35 +1,36 @@
 """
 Centralizes the logic for reading datasets and standardizing the resulting dataframes.
 """
-from ..utils import DatasetsNames
 from .base_dataset_loader import BaseDatasetLoader
 from .balabit_loader import BalabitLoader
 from .minecraft_loader import MinecraftLoader
-from typing import Dict
-from pandas import DataFrame
+from enum import Enum
 
+class EnumDatasets(Enum):
+    BALABIT = "balabit"
+    MINECRAFT = "minecraft"
 
-def load_dataset(dataset_name: DatasetsNames) -> Dict[str, DataFrame]:
+def load_dataset(dataset_name: EnumDatasets, is_debug: bool) -> BaseDatasetLoader:
     """
     Factory function to load datasets by name.
 
     :param dataset_name: Name of the dataset
-    :return: Dictionary mapping user_id to DataFrame
+    :param is_debug: Is the dataset loader being run in debug mode
+    :return: A dataset loader
     """
     loaders = {
-        DatasetsNames.BALABIT: BalabitLoader,
-        DatasetsNames.MINECRAFT: MinecraftLoader,
+        EnumDatasets.BALABIT: BalabitLoader,
+        EnumDatasets.MINECRAFT: MinecraftLoader,
     }
 
     if dataset_name in loaders:
-        loader = loaders[dataset_name]()
-        return loader.load()
+        loader = loaders[dataset_name](is_debug)
+        return loader
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
 __all__ = [
     "BaseDatasetLoader",
-    "BalabitLoader",
-    "MinecraftLoader",
+    "EnumDatasets",
     "load_dataset"
 ]

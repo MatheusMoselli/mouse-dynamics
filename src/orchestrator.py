@@ -2,11 +2,10 @@
 Orchestrator for code centralization.
 Keep all the logic hidden from the result analysis.
 """
-from src.classifiers import BaseClassifier
-from src.dataset_loaders import load_dataset
-from src.preprocessors import BasePreprocessor
-from src.splitters import BaseSplitter
-from src.utils import DatasetsNames
+from src.dataset_loaders import (load_dataset, EnumDatasets)
+from src.classifiers import (load_classifier, EnumClassifiers)
+from src.preprocessors import (load_preprocessor, EnumPreprocessors)
+from src.splitters import (load_splitter, EnumSplitters)
 import logging
 
 
@@ -18,24 +17,24 @@ class Orchestrator:
     Uses builder design pattern for easier usage.
     """
     def __init__(self,
-                 preprocessor: BasePreprocessor,
-                 splitter: BaseSplitter,
-                 classifier: BaseClassifier,
+                 dataset: EnumDatasets,
+                 preprocessor: EnumPreprocessors,
+                 splitter: EnumSplitters,
+                 classifier: EnumClassifiers,
                  is_debug = False):
-        self.preprocessor = preprocessor
-        self.splitter = splitter
-        self.classifier = classifier
-        self._is_debug = is_debug
+        self.dataset_loader = load_dataset(dataset, is_debug)
+        self.preprocessor = load_preprocessor(preprocessor, is_debug)
+        self.splitter = load_splitter(splitter, is_debug)
+        self.classifier = load_classifier(classifier, is_debug)
         self.dataframes_by_users = {}
 
-    def _load_dataset(self, dataset_name: DatasetsNames):
+    def _load_dataset(self):
         """
         Call the load_dataset method for initializing the dataset.
-        :param dataset_name: Enum for choosing which dataset to load.
         :return: self
         """
         logger.info(f"Loading dataset.")
-        self.dataframes_by_users = load_dataset(dataset_name)
+        self.dataframes_by_users = self.dataset_loader.load()
         return self
 
     def _preprocess(self):
@@ -44,7 +43,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Preprocessing.")
-        self.dataframes_by_users = self.preprocessor.preprocess(self.dataframes_by_users, is_debug=self._is_debug)
+        self.dataframes_by_users = self.preprocessor.preprocess(self.dataframes_by_users)
         return self
 
     def _split(self):
@@ -53,7 +52,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Splitting.")
-        self.dataframes_by_users = self.splitter.split(self.dataframes_by_users, is_debug=self._is_debug)
+        self.dataframes_by_users = self.splitter.split(self.dataframes_by_users)
         return self
 
     def _fit(self):
@@ -65,8 +64,8 @@ class Orchestrator:
         self.classifier.fit(self.dataframes_by_users)
         return self
 
-    def run(self, dataset_name: DatasetsNames):
-        self._load_dataset(dataset_name) \
+    def run(self):
+        self._load_dataset() \
             ._preprocess() \
             ._split() \
             ._fit()

@@ -10,6 +10,14 @@ logger = logging.getLogger(__name__)
 
 class BaseDatasetLoader(ABC):
     """Abstract base class for dataset loaders."""
+
+    def __init__(self, is_debug: bool = False):
+        """
+        Class initialization.
+        :param is_debug: Is the dataset loader being run in debug mode.
+        """
+        self.is_debug = is_debug
+
     @abstractmethod
     def load(self) -> Dict[str, pd.DataFrame]:
         """

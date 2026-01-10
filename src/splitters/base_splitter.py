@@ -10,11 +10,17 @@ class BaseSplitter:
     The features should already be extracted at this point
     """
 
-    def split(self, dataframes_by_users: Dict[str, DataFrame], is_debug=False) -> Dict[str, DataFrame]:
+    def __init__(self, is_debug: bool = False):
+        """
+        Class initialization.
+        :param is_debug: Is the splitter being run in debug mode.
+        """
+        self.is_debug = is_debug
+
+    def split(self, dataframes_by_users: Dict[str, DataFrame]) -> Dict[str, DataFrame]:
         """
         Split the dataset into train/test sets.
         :param dataframes_by_users:  the list of datasets to be split
-        :param is_debug: If true, will save a parquet file for each user, with its features extracted
         :return: The list of train/test sets
         """
         pass
