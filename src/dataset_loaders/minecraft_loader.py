@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 class MinecraftLoader(BaseDatasetLoader):
     """Loader for `Continuous Authentication Using Mouse Movements, Machine Learning, and Minecraft` Mouse Dynamics dataset."""
-    def __init__(self):
+    def __init__(self, is_debug: bool = False):
         """
         Initialize the data loader.
         """
 
-        super().__init__()
-        self.data_path = Path("../../datasets/raw/minecraft")
+        super().__init__(is_debug)
+        self.data_path = Path("../datasets/raw/minecraft")
 
         if not self.data_path.exists():
             raise FileNotFoundError(f"Data path not found: {self.data_path}")

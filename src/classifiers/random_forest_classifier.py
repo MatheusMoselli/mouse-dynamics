@@ -17,9 +17,9 @@ class RandomForestClassifier(BaseClassifier):
     Custom Random Forest Classifier following the project pattern
     """
 
-    def __init__(self):
+    def __init__(self, is_debug: bool = False):
         # Create the model
-        super().__init__()
+        super().__init__(is_debug)
 
         self.model = SkLearnRandomForestClassifier(
             n_estimators=200,

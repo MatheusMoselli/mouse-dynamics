@@ -42,7 +42,7 @@ class MinecraftSplitter(BaseSplitter):
             split_dfs_by_users[main_user_id] = final_training_df
 
             if self.is_debug:
-                file_path_str = f"../../datasets/training/user{main_user_id}.parquet"
+                file_path_str = f"../datasets/training/user{main_user_id}.parquet"
 
                 file = Path(file_path_str)
                 file.unlink(missing_ok=True)

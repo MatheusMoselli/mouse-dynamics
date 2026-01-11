@@ -43,7 +43,7 @@ class MinecraftPreprocessor(BasePreprocessor):
 
             logger.info(f"User {user_id} statistical features extracted")
             if self.is_debug:
-                file_path_str = f"../../datasets/features/minecraft/user{user_id}.parquet"
+                file_path_str = f"../datasets/features/user{user_id}.parquet"
 
                 file = Path(file_path_str)
                 file.unlink(missing_ok=True)
@@ -65,7 +65,8 @@ class MinecraftPreprocessor(BasePreprocessor):
                 .any(axis=1)
             )
 
-            if last_value_previous_group is not None and i_df[["x","y"]].iloc[0].equals(last_value_previous_group):
+            if (last_value_previous_group is not None
+                    and i_df[["x","y"]].iloc[0].equals(last_value_previous_group)):
                 is_current_line_unique.iloc[0] = False
 
             i_df_clean = i_df[is_current_line_unique]
@@ -128,10 +129,6 @@ class MinecraftPreprocessor(BasePreprocessor):
         general_features.update(self._extract_kinematic_features(x, y, t))
         general_features.update(self._extract_temporal_features(t))
         general_features.update(self._extract_curvature_features(x, y, t))
-
-        #TODO: Adjust the following methods
-
-        #TODO: Add the others features from the sheets that are not present in the Minecraft official extraction
 
         # general_features.update(self._extract_spatial_features(x, y))
         # general_features.update(self._extract_statistical_features(x, y))
@@ -198,201 +195,6 @@ class MinecraftPreprocessor(BasePreprocessor):
         features['auto_intersecao'] = self._count_self_intersections(x, y)
 
         return features
-
-    def _extract_temporal_features(self, t: np.ndarray) -> Dict[str, np.ndarray]:
-        """
-        Extract temporal features.
-
-        These features describe timing characteristics of the mouse movement.
-        """
-
-        # Elapsed time / Mouse digraph
-        temporal_features = {
-            'elapsed_time': np.concatenate(([0], np.diff(t)))
-        }
-
-
-        return temporal_features
-
-    def _extract_kinematic_features(self, x: np.ndarray, y: np.ndarray, t: np.ndarray) -> Dict[str, float]:
-        """
-        Extract kinematic features (velocity, acceleration, jerk).
-
-        These features describe the motion characteristics of the mouse cursor.
-
-        :param x: the X coordinate array
-        :param y: the Y coordinate array
-        :param t: the timestamp array
-        """
-        #TODO: check literature to see if I should use the absolute values of x - x-1 and y - y-1 (std is too big)
-        motion_features = {}
-
-        # Calculate time differences
-        time_differences_arr = np.concatenate(([0], np.diff(t)))
-
-        # Calculate spatial differences
-        x_differences_arr = np.concatenate(([0], np.diff(x)))
-        y_differences_arr = np.concatenate(([0], np.diff(y)))
-
-        # The first value of the dataframe is always zero
-        #TODO: Probably there is other feature_extractions that doesnt make the first zero or make the last also zero. Check if is a good idea to parameterize this options
-
-        # Speed magnitude {sqrt(x_differences_arr*2 + y_differences_arr*2) / time_differences_arr}
-        speed_arr = np.zeros_like(time_differences_arr)
-        np.divide(np.sqrt(x_differences_arr**2 + y_differences_arr**2), time_differences_arr, out = speed_arr, where = time_differences_arr != 0)
-        motion_features['speed'] = speed_arr
-
-        # Horizontal speed (x-axis) {x_differences_arr / time_differences_arr}
-        x_speed_arr = np.zeros_like(time_differences_arr)
-        #TODO: check my own audio recording in my personal whatsapp group. Talk to professor about it (duplicates interfering in timestamp difference)
-        np.divide(x_differences_arr, time_differences_arr, out = x_speed_arr, where = time_differences_arr != 0)
-        motion_features['speed_x'] = x_speed_arr
-
-        # Vertical speed (y-axis) {y_differences_arr / time_differences_arr}
-        y_speed_arr = np.zeros_like(time_differences_arr)
-        np.divide(y_differences_arr, time_differences_arr, out = y_speed_arr, where = time_differences_arr != 0)
-        motion_features['speed_y'] = y_speed_arr
-
-        #TODO: finish the motion feature extraction
-
-        # Acceleration magnitude {speed_difference_arr / time_differences_arr}
-        #TODO: talk to professor: in the original dataset, they calculate the acceleration wrong: dt / dv
-        speed_difference_arr = np.concatenate(([0], np.diff(speed_arr)))
-
-        acceleration_arr = np.zeros_like(time_differences_arr)
-        np.divide(speed_difference_arr, time_differences_arr, out = acceleration_arr, where = time_differences_arr != 0)
-        motion_features['acceleration'] = acceleration_arr
-
-        # Horizontal Acceleration  (x-axis) {x_speed_difference_arr / time_differences_arr}
-        x_speed_difference_arr = np.concatenate(([0], np.diff(x_speed_arr)))
-
-        x_acceleration = np.zeros_like(time_differences_arr)
-        np.divide(x_speed_difference_arr, time_differences_arr, out = x_acceleration, where = time_differences_arr != 0)
-        motion_features['acceleration_x'] = x_acceleration
-
-        # Vertical Acceleration  (y-axis) {y_speed_difference_arr / time_differences_arr}
-        y_speed_difference_arr = np.concatenate(([0], np.diff(y_speed_arr)))
-
-        y_acceleration = np.zeros_like(time_differences_arr)
-        np.divide(y_speed_difference_arr, time_differences_arr, out = y_acceleration, where = time_differences_arr != 0)
-        motion_features['acceleration_y'] = y_acceleration
-
-        y_acceleration_difference_arr = np.concatenate(([0], np.diff(y_acceleration)))
-        x_acceleration_difference_arr = np.concatenate(([0], np.diff(x_acceleration)))
-
-        acceleration_difference_arr = np.concatenate(([0], np.diff(acceleration_arr)))
-
-        jerk = np.zeros_like(time_differences_arr)
-        np.divide(acceleration_difference_arr, time_differences_arr, out = jerk, where = time_differences_arr != 0)
-        motion_features['jerk'] = jerk
-
-        curvatures = np.zeros_like(time_differences_arr)
-        curvature_upper_part = x_speed_difference_arr*y_acceleration_difference_arr - y_speed_difference_arr*x_acceleration_difference_arr
-        curvature_lower_part = np.power(x_speed_difference_arr**2 + y_speed_difference_arr**2, 3/2)
-
-        np.divide(curvature_upper_part, curvature_lower_part, out = curvatures, where = curvature_lower_part != 0)
-        motion_features['curvature'] = curvatures
-
-        return motion_features
-
-    def _extract_curvature_features(self, x: np.ndarray, y: np.ndarray, t: np.ndarray) -> Dict[str, float]:
-        """
-        Extract curvature-related features.
-
-        These features describe how the trajectory curves and changes direction.
-        """
-        curvature_features = {}
-        # Calculate time differences
-
-        # Calculate spatial differences
-        x_differences_arr = np.concatenate(([0], np.diff(x)))
-        y_differences_arr = np.concatenate(([0], np.diff(y)))
-
-        # Movement angle - Tangent angle relative to x-axis
-        slopes = np.zeros_like(x_differences_arr)
-        np.divide(y_differences_arr, x_differences_arr, out = slopes, where = x_differences_arr != 0)
-
-        radian_angles = np.arctan(slopes)
-        curvature_features['angle_radians'] = radian_angles
-        curvature_features['angle_degrees'] = np.degrees(radian_angles)
-
-
-        # Calculate time differences (avoid division by zero)
-        # dt = np.diff(t)
-        # dt = np.where(dt == 0, 1e-10, dt)
-        #
-        # if len(x) < 3:
-        #     # Not enough points for curvature calculation
-        #     features['curvatura_media'] = 0.0
-        #     features['velocidade_curvatura_media'] = 0.0
-        #     features['taxa_curvatura_media'] = 0.0
-        #     features['angulo_movimento_medio'] = 0.0
-        #     features['raio_curvatura_medio'] = 0.0
-        #     features['velocidade_angular_media'] = 0.0
-        #     features['angulos_totais_energia_curvatura'] = 0.0
-        #     return features
-        #
-        # # First derivatives (velocity components)
-        # dx = np.diff(x)
-        # dy = np.diff(y)
-        #
-        # # Second derivatives (acceleration components)
-        # if len(x) > 2:
-        #     ddx = np.diff(dx) / dt[1:]
-        #     ddy = np.diff(dy) / dt[1:]
-        #
-        #     # Velocity components at points where we have acceleration
-        #     vx = dx[1:] / dt[1:]
-        #     vy = dy[1:] / dt[1:]
-        #
-        #     # Curvature calculation: κ = |x'y'' - y'x''| / (x'² + y'²)^(3/2)
-        #     numerator = np.abs(vx * ddy - vy * ddx)
-        #     denominator = (vx**2 + vy**2)**1.5
-        #     denominator = np.where(denominator == 0, 1e-10, denominator)
-        #
-        #     curvature = numerator / denominator
-        #
-        #     # === CURVATURE STATISTICS ===
-        #
-        #     features['curvatura_media'] = np.mean(curvature)
-        #     features['curvatura_std'] = np.std(curvature)
-        #     features['curvatura_max'] = np.max(curvature)
-        #
-        #     # Raio de Curvatura médio (radius of curvature = 1/κ)
-        #     radii = 1.0 / (curvature + 1e-10)
-        #     # Filter out extreme values for stability
-        #     features['raio_curvatura_medio'] = np.mean(radii[radii < 1e8])
-        #
-        #     # Velocidade de Curvatura (Vcurve) - Rate of change of curvature magnitude
-        #     if len(curvature) > 1:
-        #         vcurve = np.sqrt(curvature[:-1]**2 + curvature[1:]**2)
-        #         features['velocidade_curvatura_media'] = np.mean(vcurve)
-        #
-        #     # Taxa de Curvatura - Time derivative of curvature
-        #     if len(curvature) > 1:
-        #         dcurvature = np.diff(curvature) / dt[2:]
-        #         features['taxa_curvatura_media'] = np.mean(np.abs(dcurvature))
-        #
-        #     # Ângulos Totais / Energia de Curvatura - Sum of absolute curvatures
-        #     features['angulos_totais_energia_curvatura'] = np.sum(np.abs(curvature))
-        #
-        # # === ANGULAR FEATURES ===
-        #
-        # # Velocidade Angular (ωi) - Rate of change of angle
-        # if len(angles) > 1:
-        #     angular_velocity = np.diff(angles) / dt[1:]
-        #     # Handle angle wrapping (convert to [-π, π] range)
-        #     angular_velocity = np.arctan2(np.sin(angular_velocity), np.cos(angular_velocity))
-        #     features['velocidade_angular_media'] = np.mean(np.abs(angular_velocity))
-        #     features['velocidade_angular_std'] = np.std(angular_velocity)
-        #
-        # # Ângulo (γ) - Lei dos Cossenos - Angle between consecutive segments
-        # if len(x) > 2:
-        #     angles_cosine = self._calculate_cosine_angles(x, y)
-        #     features['angulo_lei_cossenos_medio'] = np.mean(angles_cosine)
-        #     features['angulo_lei_cossenos_std'] = np.std(angles_cosine)
-
-        return curvature_features
 
     def _extract_statistical_features(self, x: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """

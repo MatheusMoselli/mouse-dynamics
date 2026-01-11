@@ -33,6 +33,12 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
+dependencies = [
+    "pandas~=2.2.3",
+    "scikit-learn~=1.6.1",
+    "pyarrow>=14.0.0",
+    "fastparquet>=2024.2.0"
+]
 
 [project.scripts]
 md-extract = "scripts.extract_features:main"
@@ -51,11 +57,6 @@ exclude = ["tests*", "notebooks*", "scripts*", "data*", "experiments*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.json"]
-
-dependencies = [
-    "pandas~=2.2.3",
-    "scikit-learn~=1.6.1"
-]
 
 [tool.black]
 line-length = 100

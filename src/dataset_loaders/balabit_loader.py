@@ -18,7 +18,7 @@ class BalabitLoader(BaseDatasetLoader):
         Initialize the dataset loader.
         """
         super().__init__()
-        self.data_path = Path("../../datasets/raw/balabit/training_files")
+        self.data_path = Path("../datasets/raw/balabit/training_files")
 
         if not self.data_path.exists():
             raise FileNotFoundError(f"Data path not found: {self.data_path}")
