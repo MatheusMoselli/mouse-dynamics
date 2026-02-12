@@ -60,6 +60,305 @@ class BasePreprocessor(ABC):
         """
         pass
 
+    def _test(self, x_axis_arr: np.ndarray, y_axis_arr: np.ndarray, time_arr: np.ndarray, window_size: int) -> pd.DataFrame:
+        all_features = { "x": x_axis_arr, "y": y_axis_arr, "timestamp": time_arr }
+
+        diff_x_axis_arr = np.concatenate(([0], np.diff(x_axis_arr)))
+        diff_y_axis_arr = np.concatenate(([0], np.diff(y_axis_arr)))
+        diff_time_arr = np.concatenate(([0], np.diff(time_arr)))
+
+        # 1. Traveled Distance (Di)
+        traveled_distance = np.sqrt(
+            np.power(diff_x_axis_arr, 2) + np.power(diff_y_axis_arr, 2)
+        )
+        all_features["traveled_distance"] = traveled_distance
+
+        # 2. Curve length/Real Dist. (Sn)
+        curve_length = np.cumsum(traveled_distance)
+        all_features["curve_length"] = curve_length
+
+        # 3. Elapsed Time/Mouse Digraph
+        elapsed_time = diff_time_arr
+        all_features["elapsed_time"] = elapsed_time
+
+        # 4. Movement Offset
+        movement_offset =  curve_length - traveled_distance
+        all_features["movement_offset"] = movement_offset
+
+        # 5. Deviation Distance
+        deviation_distance_upper_part = (diff_y_axis_arr * x_axis_arr
+                                         + diff_x_axis_arr * y_axis_arr
+                                         + (x_axis_arr[:-1] * y_axis_arr[1:] - x_axis_arr[1:] * y_axis_arr[:-1]))
+        deviation_distance = np.zeros_like(diff_time_arr)
+        np.divide(
+            deviation_distance_upper_part,
+            traveled_distance,
+            out=deviation_distance,
+            where=traveled_distance != 0
+        )
+        all_features["deviation_distance"] = deviation_distance
+
+        # 6. Straightness, Efficiency
+        straightness = np.zeros_like(diff_time_arr)
+        np.divide(
+            traveled_distance,
+            curve_length,
+            out=straightness,
+            where=curve_length != 0
+        )
+        all_features["straightness"] = straightness
+
+        # 7. Jitter
+        smoothed_x_axis = np.convolve(x_axis_arr, np.ones(window_size)/window_size, mode='same')
+        smoothed_y_axis = np.convolve(y_axis_arr, np.ones(window_size)/window_size, mode='same')
+
+        diff_smoothed_x_axis = np.concatenate(([0], np.diff(smoothed_x_axis)))
+        diff_smoothed_y_axis = np.concatenate(([0], np.diff(smoothed_y_axis)))
+
+        smoothed_path_length = np.sqrt(
+            diff_smoothed_x_axis ** 2 + diff_smoothed_y_axis ** 2
+        )
+
+        jitter = np.zeros_like(diff_time_arr)
+        np.divide(
+            traveled_distance,
+            smoothed_path_length,
+            out=jitter,
+            where=smoothed_path_length != 0
+        )
+
+        all_features["jitter"] = jitter
+
+        # 8. Velocity, Speed
+        speed = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            traveled_distance,
+            diff_time_arr,
+            out=speed,
+            where=diff_time_arr != 0
+        )
+
+        all_features["speed"] = speed
+
+        # 9. Horizontal Speed
+        horizontal_speed = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_x_axis_arr,
+            diff_time_arr,
+            out=horizontal_speed,
+            where=diff_time_arr != 0
+        )
+
+        all_features["horizontal_speed"] = horizontal_speed
+
+        # 10. Vertical Speed
+        vertical_speed = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_y_axis_arr,
+            diff_time_arr,
+            out=vertical_speed,
+            where=diff_time_arr != 0
+        )
+
+        all_features["vertical_speed"] = vertical_speed
+
+        # 11. Horizontal Acceleration
+        diff_x_speed_arr = np.concatenate(([0], np.diff(diff_x_axis_arr)))
+
+        horizontal_acceleration = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_x_speed_arr,
+            diff_time_arr,
+            out=horizontal_acceleration,
+            where=diff_time_arr != 0
+        )
+
+        all_features["horizontal_acceleration"] = horizontal_acceleration
+
+        # 12. Vertical Acceleration
+        diff_y_speed_arr = np.concatenate(([0], np.diff(diff_y_axis_arr)))
+
+        vertical_acceleration = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_y_speed_arr,
+            diff_time_arr,
+            out=vertical_acceleration,
+            where=diff_time_arr != 0
+        )
+
+        all_features["vertical_acceleration"] = vertical_acceleration
+
+        # 13. Acceleration
+        diff_speed_arr = np.concatenate(([0], np.diff(speed)))
+
+        acceleration = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_speed_arr,
+            diff_time_arr,
+            out=acceleration,
+            where=diff_time_arr != 0
+        )
+
+        all_features["acceleration"] = acceleration
+
+        # 14. Average Speed against distance
+        avg_speed_against_distance = np.zeros_like(curve_length)
+        cumulative_speed_avg = np.cumsum(speed) / np.arange(1, len(speed) + 1)
+
+        np.divide(
+            cumulative_speed_avg,
+            curve_length,
+            out=avg_speed_against_distance,
+            where=curve_length != 0
+        )
+
+        all_features["avg_speed_against_distance"] = avg_speed_against_distance
+
+        # 15. Horizontal Acceleration against Resultant Acceleration
+        horizontal_acceleration_against_resultant_acceleration = np.zeros_like(diff_speed_arr)
+
+        np.divide(
+            diff_x_speed_arr,
+            diff_speed_arr,
+            out=horizontal_acceleration_against_resultant_acceleration,
+            where=diff_speed_arr != 0
+        )
+
+        all_features["x_acceleration_vs_resultant"] = horizontal_acceleration_against_resultant_acceleration
+
+        # 16. Vertical Acceleration against Resultant Acceleration
+        vertical_acceleration_against_resultant_acceleration = np.zeros_like(diff_speed_arr)
+
+        np.divide(
+            diff_y_speed_arr,
+            diff_speed_arr,
+            out=vertical_acceleration_against_resultant_acceleration,
+            where=diff_speed_arr != 0
+        )
+
+        all_features["y_acceleration_vs_resultant"] = vertical_acceleration_against_resultant_acceleration
+
+        # 17. Average X Acceleration against distance
+        avg_x_acc_against_distance = np.zeros_like(curve_length)
+        cumulative_x_acc_avg = np.cumsum(horizontal_acceleration) / np.arange(1, len(horizontal_acceleration) + 1)
+
+        np.divide(
+            cumulative_x_acc_avg,
+            curve_length,
+            out=avg_x_acc_against_distance,
+            where=curve_length != 0
+        )
+
+        all_features["avg_x_acc_against_distance"] = avg_x_acc_against_distance
+
+        # 18. Average Y Acceleration against distance
+        avg_y_acc_against_distance = np.zeros_like(curve_length)
+        cumulative_y_acc_avg = np.cumsum(vertical_acceleration) / np.arange(1, len(vertical_acceleration) + 1)
+
+        np.divide(
+            cumulative_y_acc_avg,
+            curve_length,
+            out=avg_y_acc_against_distance,
+            where=curve_length != 0
+        )
+
+        all_features["avg_y_acc_against_distance"] = avg_y_acc_against_distance
+
+
+        # 19. Tangential Speed
+        tangential_speed = np.sqrt(
+            np.power(horizontal_speed, 2)
+            + np.power(vertical_speed, 2)
+        )
+
+        all_features["tangential_speed"] = tangential_speed
+
+        # 20. Tangential Acceleration
+        tangential_acceleration = np.sqrt(
+            np.power(horizontal_acceleration, 2)
+            + np.power(vertical_acceleration, 2)
+        )
+
+        all_features["tangential_acceleration"] = tangential_acceleration
+
+        # 21. Tangential Jerk
+        diff_tang_acc_arr = np.concatenate(([0], np.diff(tangential_acceleration)))
+        tangential_jerk = np.zeros_like(diff_time_arr)
+
+        np.divide(
+            diff_tang_acc_arr,
+            diff_time_arr,
+            out=tangential_jerk,
+            where=diff_time_arr != 0
+        )
+
+        all_features["tangential_jerk"] = tangential_jerk
+
+        # 22. Angle of movement
+        angle = np.zeros_like(diff_time_arr)
+        diff_tangential_acc = np.concatenate(([0], np.diff(tangential_acceleration)))
+
+        np.divide(
+            diff_tangential_acc,
+            diff_time_arr,
+            out=angle,
+            where=diff_time_arr != 0
+        )
+
+        all_features["angle"] = angle
+
+        # 23. Rate of curvature
+        #TODO
+
+        # 24. Total Angles
+        total_angles = np.cumsum(angle)
+        all_features["total_angles"] = total_angles
+
+        # 25. Regularity
+        #TODO
+
+        # 26. Trajectory of Center of Mas
+        # TODO
+
+        # 27. Scattering Coefficient
+        # TODO
+
+        # 28. Curvature Velocity
+        curvature_velocity = np.zeros_like(tangential_acceleration)
+        np.divide(
+            tangential_jerk,
+            np.power(1 + np.power(tangential_acceleration, 2), 3/2),
+        )
+
+        all_features["curvature_velocity"] = curvature_velocity
+
+        # 29. Central Moments
+        #TODO
+
+        # 30. Self-Intersection
+        # TODO
+
+        # 31. Angle Feature (Law of cosines)
+        # TODO
+
+        # 32. Acceleration Beginning time
+        # Calculated in the splited df (end)
+
+        # 33. Skewness (third moment)
+        #TODO
+
+        # 34. Kurtosis (fourth moment)
+        #TODO
+
+        return pd.DataFrame(all_features)
+
+
     def _extract_temporal_features(self, time_arr: np.ndarray) -> Dict[str, np.ndarray]:
         """
         Extract temporal features.

@@ -4,9 +4,11 @@ Centralizes the logic for feature extraction and statistical analysis upon these
 from enum import Enum
 from .base_preprocessor import BasePreprocessor
 from .minecraft_preprocessor import  MinecraftPreprocessor
+from .khan_preprocessor import KhanPreprocessor
 
 class EnumPreprocessors(Enum):
-    MINECRAFT = "minecraft"
+    MINECRAFT = "minecraft",
+    KHAN = "khan",
 
 def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool) -> BasePreprocessor:
     """
@@ -18,6 +20,7 @@ def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool) -> B
     """
     preprocessors = {
         EnumPreprocessors.MINECRAFT: MinecraftPreprocessor,
+        EnumPreprocessors.KHAN: KhanPreprocessor,
     }
 
     if preprocessor_name in preprocessors:
