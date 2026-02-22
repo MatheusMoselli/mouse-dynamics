@@ -7,7 +7,21 @@ from src.classifiers import (load_classifier, EnumClassifiers)
 from src.preprocessors import (load_preprocessor, EnumPreprocessors)
 from src.splitters import (load_splitter, EnumSplitters)
 import logging
+import shutil
+import sys
+import os
 
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+)
+
+root = logging.getLogger()
+root.handlers.clear()
+root.addHandler(handler)
+root.setLevel(logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +40,16 @@ class Orchestrator:
         self.preprocessor = load_preprocessor(preprocessor, is_debug)
         self.splitter = load_splitter(splitter, is_debug)
         self.classifier = load_classifier(classifier, is_debug)
+        self._is_debug = is_debug
         self.dataframes_by_users = {}
+
+    @staticmethod
+    def __rebuild_directory(directory_path: str):
+        try:
+            shutil.rmtree(directory_path)
+            os.makedirs(directory_path)
+        except OSError as e:
+            logger.critical(f"Could not recreate the {directory_path} folder! e: {e}")
 
     def _load_dataset(self):
         """
@@ -64,7 +87,27 @@ class Orchestrator:
         self.classifier.fit(self.dataframes_by_users)
         return self
 
+    def _clean_previous_debug_files(self):
+        if not self._is_debug:
+            logger.info("Skipping cleaning old debug files.")
+            return
+
+        # 1. Deleting base files:
+        logger.info(f"Cleaning old debug files - Base dataset.")
+        self.__rebuild_directory("../datasets/base")
+
+        # 2. Deleting features files:
+        logger.info(f"Cleaning old debug files - Features.")
+        self.__rebuild_directory("../datasets/features")
+
+        # 3. Deleting training files:
+        logger.info(f"Cleaning old debug files - Training.")
+        self.__rebuild_directory("../datasets/training")
+
     def run(self):
+        if self._is_debug:
+            self._clean_previous_debug_files()
+
         self._load_dataset() \
             ._preprocess() \
             ._split() \

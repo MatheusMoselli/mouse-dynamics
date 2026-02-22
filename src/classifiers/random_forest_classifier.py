@@ -5,7 +5,10 @@
     Trees in the forest use the best split strategy.
     see: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
 """
+from pathlib import Path
 from typing import Dict
+
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier as SkLearnRandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
@@ -37,7 +40,7 @@ class RandomForestClassifier(BaseClassifier):
             x = df.copy().drop(columns=["authentic"]).dropna()
             y = df.copy().dropna()["authentic"]
 
-            x_train, x_test, y_train, y_test = train_test_split(x, y, stratify=y, test_size=0.2)
+            x_train, x_test, y_train, y_test = train_test_split(x, y, stratify=y, test_size=0.5)
 
             self.model.fit(x_train, y_train)
 
@@ -45,3 +48,18 @@ class RandomForestClassifier(BaseClassifier):
             y_prediction = self.model.predict(x_test)
             print("Classification report for classifier " + user_id + ":")
             print(classification_report(y_test, y_prediction))
+
+
+if __name__ == "__main__":
+    random_forest = RandomForestClassifier(is_debug=True)
+    feature_files_location = Path("../../datasets/training")
+
+    dfs_by_users = {}
+    for training_file in feature_files_location.iterdir():
+        if training_file.suffix != ".parquet":
+            continue
+
+        training_user_id = training_file.stem.replace("user", "")
+        dfs_by_users[training_user_id] = pd.read_parquet(training_file)
+
+    random_forest.fit(dfs_by_users)

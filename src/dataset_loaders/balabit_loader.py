@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 class BalabitLoader(BaseDatasetLoader):
     """Loader for `Balabit` Mouse Dynamics dataset."""
 
-    def __init__(self):
+    def __init__(self,  is_debug: bool = False):
         """
         Initialize the dataset loader.
         """
-        super().__init__()
+        super().__init__(is_debug)
         self.data_path = Path("../datasets/raw/balabit/training_files")
 
         if not self.data_path.exists():
@@ -44,26 +44,36 @@ class BalabitLoader(BaseDatasetLoader):
         """
         dataframes_by_users = {}
 
-        for csv_file in sorted(self.data_path.glob("*.csv")):
-            logger.info(f"Loading {csv_file.name}")
+        for directory in self.data_path.iterdir():
+            user_id = directory.stem.replace("user","")
 
-            df = pd.read_csv(csv_file)
+            if not directory.is_dir():
+                continue
 
-            # Group by user
-            for user_id, user_df in df.groupby('user_id'):
-                # Standardize columns
-                standardized = self._standardize_columns(
-                    user_df,
-                    x_col_name='x',
-                    y_col_name='y',
-                    time_col_name='timestamp',
-                    action_col_name='state'
+            for session in directory.iterdir():
+                session_df = pd.read_csv(session)
+
+                standardized_session_df = self._standardize_columns(
+                    session_df,
+                    x_col_name="x",
+                    y_col_name="y",
+                    time_col_name="record timestamp",
+                    action_col_name="button",
                 )
 
                 if user_id in dataframes_by_users:
-                    dataframes_by_users[str(user_id)] = pd.concat([dataframes_by_users[str(user_id)], standardized])
+                    dataframes_by_users[user_id] = pd.concat([dataframes_by_users[user_id], standardized_session_df])
                 else:
-                    dataframes_by_users[str(user_id)] = standardized
+                    dataframes_by_users[user_id] = standardized_session_df
+
+            for user_id, dataframe in dataframes_by_users.items():
+                if self.is_debug:
+                    file_path_str = f"../datasets/base/user{user_id}.parquet"
+
+                    file = Path(file_path_str)
+                    file.unlink(missing_ok=True)
+
+                    dataframe.to_parquet(file_path_str, index=False)
 
         logger.info(f"Loaded {len(dataframes_by_users)} users from Balabit dataset")
         return dataframes_by_users

@@ -6,8 +6,8 @@ from src.splitters import EnumSplitters
 
 if __name__ == "__main__":
     orchestrator = Orchestrator(
-        dataset=EnumDatasets.MINECRAFT,
-        splitter=EnumSplitters.MINECRAFT,
+        dataset=EnumDatasets.BALABIT,
+        splitter=EnumSplitters.FIFTY_FIFTY,
         classifier=EnumClassifiers.RANDOM_FOREST,
         preprocessor=EnumPreprocessors.KHAN,
         is_debug=True

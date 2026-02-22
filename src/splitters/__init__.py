@@ -3,10 +3,12 @@ Centralizes the test/training split for fitting into multiple classifiers
 """
 from enum import Enum
 from .base_splitter import BaseSplitter
+from .fifty_fifty_splitter import FiftyFiftySplitter
 from .minecraft_splitter import MinecraftSplitter
 
 class EnumSplitters(Enum):
     MINECRAFT = "minecraft"
+    FIFTY_FIFTY = "fifty_fifty"
 
 def load_splitter(splitter_name: EnumSplitters, is_debug: bool) -> BaseSplitter:
     """
@@ -18,6 +20,7 @@ def load_splitter(splitter_name: EnumSplitters, is_debug: bool) -> BaseSplitter:
     """
     splitters = {
         EnumSplitters.MINECRAFT: MinecraftSplitter,
+        EnumSplitters.FIFTY_FIFTY: FiftyFiftySplitter,
     }
 
     if splitter_name in splitters:
