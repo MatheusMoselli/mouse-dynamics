@@ -1,11 +1,14 @@
 """
 Preprocessing the features following the `Mouse Dynamics Behavioral Biometrics: A Survey` article.
 """
+from src.dto import ExtractionData
 from src.preprocessors import BasePreprocessor
 from pathlib import Path
 from typing import Dict
 import pandas as pd
 import logging
+
+from src.utils.log_file import log_dataframe_file
 
 logger = logging.getLogger(__name__)
 
@@ -19,31 +22,36 @@ class KhanPreprocessor(BasePreprocessor):
     # The trajectory will be divided into non-overlapping windows of this size.
     AMOUNT_OF_LINES_IN_SEQUENCE = 10
 
-    def preprocess(self, dataframes_by_users: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+    def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
         """
         Preprocess all the dataframes by user
 
-        :param dataframes_by_users: The users standardized dataframes
+        :param extraction_data: The users standardized dataframes
         :return: Dataframe containing all extracted features with descriptive names
         """
 
-        dataframes_with_features_by_users = {}
+        for user in extraction_data.users:
+            self._extract_general_features_from_df(user.training_dataframe)
+            training_statistical_df = self._extract_statistical_info_from_features_df()
+            user.training_dataframe = training_statistical_df
 
-        for user_id, dataframe in dataframes_by_users.items():
-            self._extract_general_features_from_df(dataframe)
-            statistical_df = self._extract_statistical_info_from_features_df()
-            dataframes_with_features_by_users[user_id] = statistical_df
+            self._extract_general_features_from_df(user.testing_dataframe)
+            testing_statistical_df = self._extract_statistical_info_from_features_df()
+            user.training_dataframe = testing_statistical_df
 
-            logger.info(f"User {user_id} statistical features extracted")
+            logger.info(f"User {user.id} statistical features extracted")
+
             if self.is_debug:
-                file_path_str = f"../datasets/features/user{user_id}.parquet"
+                directory_path = Path(f"../datasets/features/user{user.id}")
+                directory_path.mkdir(parents=True, exist_ok=True)
 
-                file = Path(file_path_str)
-                file.unlink(missing_ok=True)
+                training_path_str = directory_path / "training.parquet"
+                testing_path_str = directory_path / "testing.parquet"
 
-                statistical_df.to_parquet(file_path_str, index=False)
+                log_dataframe_file(training_path_str, user.training_dataframe)
+                log_dataframe_file(testing_path_str, user.testing_dataframe)
 
-        return dataframes_with_features_by_users
+        return extraction_data
 
     def _extract_general_features_from_df(self, dataframe: pd.DataFrame):
         """

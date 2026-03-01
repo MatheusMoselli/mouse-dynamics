@@ -11,6 +11,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+#TODO: add support to test files
+
 class MinecraftLoader(BaseDatasetLoader):
     """Loader for `Continuous Authentication Using Mouse Movements, Machine Learning, and Minecraft` Mouse Dynamics dataset."""
     def __init__(self, is_debug: bool = False):

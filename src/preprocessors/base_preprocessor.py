@@ -3,9 +3,11 @@ Generic preprocessor for feature extraction and statistical analysis.
 """
 from typing import Dict
 from abc import ABC, abstractmethod
+from src.dto import ExtractionData
 import pandas as pd
 import numpy as np
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,12 +56,11 @@ class BasePreprocessor(ABC):
         return self.__features_dataframe
 
     @abstractmethod
-    def preprocess(self, dataframes_by_users: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+    def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
         """
         Preprocess all the dataframes by user
-        :param dataframes_by_users: The users standardized dataframes
-        :param curvature_threshold: Threshold for detecting critical curvature points (THc)
 
+        :param extraction_data: The users standardized dataframes
         :return: Dataframe containing all extracted features with descriptive names
         """
         pass
@@ -80,7 +81,6 @@ class BasePreprocessor(ABC):
         Use the features extracted (such as velocity, acceleration, angle) and group the lines following
         the desired pattern to calculate statistical information (mean, standard deviation, min, max).
 
-        :param general_features_df: The dataframe with general features extracted
         :return: A dataframe with the statistical features extracted
         """
         pass

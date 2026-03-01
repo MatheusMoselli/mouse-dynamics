@@ -3,10 +3,12 @@ Implementation for loading the balabit dataset. For it to work properly, you sho
 in the following path: mouse-dynamics(root)/raw/balabit/ORIGINAL_DATASET_HERE
 """
 from src.dataset_loaders import BaseDatasetLoader
+from src.utils.log_file import log_dataframe_file
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 from pathlib import Path
 import pandas as pd
 import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +56,8 @@ class BalabitLoader(BaseDatasetLoader):
                 training_path_str = directory_path / "training.parquet"
                 testing_path_str = directory_path / "testing.parquet"
 
-                self._log_dataframe_file(training_path_str, user.training_dataframe)
-                self._log_dataframe_file(testing_path_str, user.testing_dataframe)
+                log_dataframe_file(training_path_str, user.training_dataframe)
+                log_dataframe_file(testing_path_str, user.testing_dataframe)
 
         logger.info(f"Loaded {len(self._extraction_data.users)} users from Balabit dataset")
         return self._extraction_data

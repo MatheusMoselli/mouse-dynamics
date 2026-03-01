@@ -59,8 +59,3 @@ class BaseDatasetLoader(ABC):
         return renamed[['x', 'y', 'timestamp', 'action']]
 
     #TODO: Add an generic function to standardize the action column, override it in every class.
-
-    @staticmethod
-    def _log_dataframe_file(file: Path, dataframe: pd.DataFrame) -> None:
-        file.unlink(missing_ok=True)
-        dataframe.to_parquet(file, index=False)
