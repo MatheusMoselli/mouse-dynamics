@@ -1,8 +1,10 @@
 """
 Generic loader and standardizer for dataset files them for consistent downstream use.
 """
-from typing import Dict, Optional
+from pathlib import Path
+from src.dto import ExtractionData
 from abc import ABC, abstractmethod
+from typing import Optional
 import pandas as pd
 import logging
 
@@ -19,7 +21,7 @@ class BaseDatasetLoader(ABC):
         self.is_debug = is_debug
 
     @abstractmethod
-    def load(self) -> Dict[str, pd.DataFrame]:
+    def load(self) -> ExtractionData:
         """
         Load the dataset.
 
@@ -57,3 +59,8 @@ class BaseDatasetLoader(ABC):
         return renamed[['x', 'y', 'timestamp', 'action']]
 
     #TODO: Add an generic function to standardize the action column, override it in every class.
+
+    @staticmethod
+    def _log_dataframe_file(file: Path, dataframe: pd.DataFrame) -> None:
+        file.unlink(missing_ok=True)
+        dataframe.to_parquet(file, index=False)
