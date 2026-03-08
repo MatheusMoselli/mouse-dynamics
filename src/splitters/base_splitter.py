@@ -4,6 +4,9 @@ Generic splitter for splitting the data into test/training groups.
 from typing import Dict
 from pandas import DataFrame
 
+from src.dto import ExtractionData
+
+
 class BaseSplitter:
     """
     Split the dataset into train/test sets.
@@ -17,10 +20,10 @@ class BaseSplitter:
         """
         self.is_debug = is_debug
 
-    def split(self, dataframes_by_users: Dict[str, DataFrame]) -> Dict[str, DataFrame]:
+    def split(self, extraction_data: ExtractionData) -> ExtractionData:
         """
         Split the dataset into train/test sets.
-        :param dataframes_by_users:  the list of datasets to be split
+        :param extraction_data:  the list of datasets to be split
         :return: The list of train/test sets
         """
         pass

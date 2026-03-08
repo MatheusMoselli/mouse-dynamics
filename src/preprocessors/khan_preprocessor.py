@@ -4,7 +4,6 @@ Preprocessing the features following the `Mouse Dynamics Behavioral Biometrics: 
 from src.dto import ExtractionData
 from src.preprocessors import BasePreprocessor
 from pathlib import Path
-from typing import Dict
 import pandas as pd
 import logging
 
@@ -31,13 +30,21 @@ class KhanPreprocessor(BasePreprocessor):
         """
 
         for user in extraction_data.users:
+            logger.info(f"Preprocessing user [TRAINING]: {user.id}")
+
             self._extract_general_features_from_df(user.training_dataframe)
             training_statistical_df = self._extract_statistical_info_from_features_df()
+            training_statistical_df["session"] = user.training_dataframe["session"]
+            training_statistical_df["authentic"] = user.training_dataframe["authentic"]
             user.training_dataframe = training_statistical_df
+
+            logger.info(f"Preprocessing user [TEST]: {user.id}")
 
             self._extract_general_features_from_df(user.testing_dataframe)
             testing_statistical_df = self._extract_statistical_info_from_features_df()
-            user.training_dataframe = testing_statistical_df
+            testing_statistical_df["session"] = user.testing_dataframe["session"]
+            testing_statistical_df["authentic"] = user.testing_dataframe["authentic"]
+            user.testing_dataframe = testing_statistical_df
 
             logger.info(f"User {user.id} statistical features extracted")
 

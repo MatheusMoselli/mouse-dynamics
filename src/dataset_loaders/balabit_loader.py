@@ -9,7 +9,6 @@ from pathlib import Path
 import pandas as pd
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 class BalabitLoader(BaseDatasetLoader):
@@ -91,7 +90,19 @@ class BalabitLoader(BaseDatasetLoader):
                 action_col_name="button",
             )
 
+            standardized_session_df["session"] = session.stem
+
             if type_of_session == EnumTypeOfSession.TRAINING:
-                user_data.training_dataframe = standardized_session_df
+                standardized_session_df["authentic"] = 1
+                user_data.append_dataframe(standardized_session_df, EnumTypeOfSession.TRAINING)
             else:
-                user_data.testing_dataframe = standardized_session_df
+                authenticity_labels = pd.read_csv(self.data_path / "public_labels.csv")
+
+                standardized_session_df["authentic"] = (standardized_session_df["session"]
+                    .map(authenticity_labels.set_index("filename")["is_illegal"])
+                    .dropna()
+                    #.fillna(0)
+                    .astype(int)
+                )
+
+                user_data.append_dataframe(standardized_session_df, EnumTypeOfSession.TESTING)

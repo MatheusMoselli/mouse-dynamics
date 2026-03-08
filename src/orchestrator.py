@@ -4,6 +4,7 @@ Keep all the logic hidden from the result analysis.
 """
 from src.dataset_loaders import (load_dataset, EnumDatasets)
 from src.classifiers import (load_classifier, EnumClassifiers)
+from src.dto import ExtractionData
 from src.preprocessors import (load_preprocessor, EnumPreprocessors)
 from src.splitters import (load_splitter, EnumSplitters)
 import logging
@@ -36,12 +37,12 @@ class Orchestrator:
                  splitter: EnumSplitters,
                  classifier: EnumClassifiers,
                  is_debug = False):
+        self.extraction_data: ExtractionData | None = None
         self.dataset_loader = load_dataset(dataset, is_debug)
         self.preprocessor = load_preprocessor(preprocessor, is_debug)
         self.splitter = load_splitter(splitter, is_debug)
         self.classifier = load_classifier(classifier, is_debug)
         self._is_debug = is_debug
-        self.dataframes_by_users = {}
 
     @staticmethod
     def __rebuild_directory(directory_path: str):
@@ -57,7 +58,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Loading dataset.")
-        self.dataframes_by_users = self.dataset_loader.load()
+        self.extraction_data = self.dataset_loader.load()
         return self
 
     def _preprocess(self):
@@ -66,7 +67,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Preprocessing.")
-        self.dataframes_by_users = self.preprocessor.preprocess(self.dataframes_by_users)
+        self.extraction_data = self.preprocessor.preprocess(self.extraction_data)
         return self
 
     def _split(self):
@@ -75,7 +76,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Splitting.")
-        self.dataframes_by_users = self.splitter.split(self.dataframes_by_users)
+        self.extraction_data = self.splitter.split(self.extraction_data)
         return self
 
     def _fit(self):
@@ -84,7 +85,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Fitting.")
-        self.classifier.fit(self.dataframes_by_users)
+        self.classifier.fit(self.extraction_data)
         return self
 
     def _clean_previous_debug_files(self):

@@ -1,13 +1,9 @@
 """
 Centralizes the logic for reading datasets and standardizing the resulting dataframes.
 """
-from enum import Enum
-from .UserDataDto import UserDataDto
-from .ExtractionData import ExtractionData
-
-class EnumTypeOfSession(Enum):
-    TRAINING = "training"
-    TESTING = "testing"
+from .user_data_dto import UserDataDto
+from .extraction_data import ExtractionData
+from .enums import EnumTypeOfSession
 
 __all__ = [
     "UserDataDto",
