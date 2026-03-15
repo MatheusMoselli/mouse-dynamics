@@ -47,6 +47,17 @@ class UserDataDto:
     def get_dataframe_by_type(self, session_type: EnumTypeOfSession) -> pd.DataFrame:
         return self._training_df if session_type == EnumTypeOfSession.TRAINING else self._testing_df
 
+    def is_user_valid(self):
+        return self.id is not None \
+            and self.training_dataframe is not None \
+            and len(self.training_dataframe) > 0 \
+            and self.testing_dataframe is not None \
+            and len(self.testing_dataframe) > 0 \
+            and self.training_dataframe["authentic"].any() \
+            and not self.training_dataframe["authentic"].all() \
+            and self.testing_dataframe["authentic"].any() \
+            and not self.testing_dataframe["authentic"].all() \
+
     @testing_dataframe.setter
     def testing_dataframe(self, test_dataframe: pd.DataFrame):
         self._testing_df = test_dataframe

@@ -3,10 +3,10 @@ Splitting the data following the `Continuous Authentication Using Mouse Movement
 Machine Learning, and Minecraft` Mouse Dynamics dataset.
 There will be the same amount of authentic data and unauthentic. Also, the unauthentic data will be populated
 by taking the same amount of data from each of the other users (so if there are other 15 users, each will be
-responsible for 1/15 of the unauthentic data.
+responsible for 1/15 of the unauthentic data).
 """
+from src.dto import ExtractionData, EnumTypeOfSession, UserDataDto
 from src.splitters import BaseSplitter
-from typing import Dict
 from pathlib import Path
 import pandas as pd
 
@@ -16,39 +16,72 @@ class MinecraftSplitter(BaseSplitter):
     The features should already be extracted at this point
     """
 
-    def split(self, dataframes_by_users: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
-        main_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) < 15}
-        support_users_features = {key: value for key, value in dataframes_by_users.items() if int(key) >= 15}
+    def split(self, extraction_data: ExtractionData) -> ExtractionData:
+        main_users_features = [user for user in extraction_data.users if int(user.id) < 15]
+        support_users_features = [user for user in extraction_data.users if int(user.id) >= 15]
 
-        split_dfs_by_users = {}
-        for main_user_id, main_user_df in main_users_features.items():
-            true_user_training_df = main_user_df.copy()
-            true_user_training_df["authentic"] = 1
+        self._split_by_session_type(
+            EnumTypeOfSession.TRAINING,
+            main_users_features,
+            support_users_features,
+            extraction_data
+        )
 
-            authentic_df_size = len(true_user_training_df)
-            amount_of_support_users = len(support_users_features)
+        self._split_by_session_type(
+            EnumTypeOfSession.TESTING,
+            main_users_features,
+            support_users_features,
+            extraction_data
+        )
+
+        return extraction_data
+
+    def _split_by_session_type(self,
+                              type_of_session: EnumTypeOfSession,
+                              main_users: list[UserDataDto],
+                              support_users: list[UserDataDto],
+                              extraction_data: ExtractionData):
+        for main_user in main_users:
+            true_user_df = main_user.training_dataframe.copy() \
+                if type_of_session == EnumTypeOfSession.TRAINING \
+                else main_user.testing_dataframe.copy()
+
+            true_user_df["authentic"] = 1
+
+            authentic_df_size = len(true_user_df)
+            amount_of_support_users = len(support_users)
             non_authentic_df_sizes = int(authentic_df_size / amount_of_support_users)
 
-            all_training_dfs = [true_user_training_df]
-            for support_user_id, support_user_df in support_users_features.items():
-                if main_user_id == support_user_id:
+            all_dfs = [true_user_df]
+            for support_user in support_users:
+                if main_user.id == support_user.id:
                     continue
 
-                ith_false_user_training_df = support_user_df.head(non_authentic_df_sizes).copy()
-                ith_false_user_training_df["authentic"] = 0
-                all_training_dfs.append(ith_false_user_training_df)
+                support_df = support_user.training_dataframe.head(non_authentic_df_sizes).copy() \
+                    if type_of_session == EnumTypeOfSession.TRAINING \
+                    else support_user.testing_dataframe.head(non_authentic_df_sizes).copy()
 
-            final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            split_dfs_by_users[main_user_id] = final_training_df
+                support_df["authentic"] = 0
+                support_df["session"] = "Train" \
+                    if type_of_session == EnumTypeOfSession.TRAINING \
+                    else "Test"
+
+                all_dfs.append(support_df)
+
+            final_df = pd.concat(all_dfs, ignore_index=True)
+            original_user = extraction_data.get_user_by_id(main_user.id)
+            if type_of_session == EnumTypeOfSession.TRAINING:
+                original_user.training_dataframe = final_df
+            else:
+                original_user.testing_dataframe = final_df
+
 
             if self.is_debug:
-                file_path_str = f"../datasets/training/user{main_user_id}.parquet"
+                file_path_str = f"../datasets/training/user{main_user.id}.parquet"
 
                 file = Path(file_path_str)
                 file.unlink(missing_ok=True)
 
 
-                final_training_df.to_parquet(file_path_str, index=False)
+                final_df.to_parquet(file_path_str, index=False)
 
-
-        return split_dfs_by_users

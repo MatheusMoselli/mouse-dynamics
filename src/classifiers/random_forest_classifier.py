@@ -37,6 +37,10 @@ class RandomForestClassifier(BaseClassifier):
         :param extraction_data: The user`s dataframes.
         """
         for user in extraction_data.users:
+            if not user.is_user_valid():
+                logger.info(f"User {user.id} is not valid for fitting")
+                continue
+
             training_dataframe_df = user.training_dataframe.copy().dropna()
             x_train = training_dataframe_df.drop(columns=["authentic","session"])
             y_train = training_dataframe_df["authentic"]
@@ -51,7 +55,6 @@ class RandomForestClassifier(BaseClassifier):
             y_prediction = self.model.predict(x_test)
             print("Classification report for classifier " + user.id + ":")
             print(classification_report(y_test, y_prediction))
-
 
 if __name__ == "__main__":
     random_forest = RandomForestClassifier(is_debug=True)

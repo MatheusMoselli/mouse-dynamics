@@ -2,10 +2,13 @@
 There will be the same amount of authentic data and unauthentic. Also, the unauthentic data will be populated
 by taking the same amount of data from each of the other users.
 """
+import logging
 from src.dto import ExtractionData
 from src.splitters import BaseSplitter
 from pathlib import Path
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 class HalfSplitter(BaseSplitter):
     """
@@ -49,6 +52,7 @@ class HalfSplitter(BaseSplitter):
                     file = Path(file_path_str)
                     file.unlink(missing_ok=True)
 
+                    logger.error(e)
 
                     final_training_df.to_parquet(file_path_str, index=False)
 
