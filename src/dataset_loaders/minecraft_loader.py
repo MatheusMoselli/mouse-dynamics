@@ -66,8 +66,8 @@ class MinecraftLoader(BaseDatasetLoader):
                 training_path_str = directory_path / "training.parquet"
                 testing_path_str = directory_path / "testing.parquet"
 
-                log_dataframe_file(training_path_str, user.training_dataframe)
-                log_dataframe_file(testing_path_str, user.testing_dataframe)
+                log_dataframe_file(training_path_str, user.training_sessions)
+                log_dataframe_file(testing_path_str, user.testing_sessions)
 
         logger.info(f"Loaded {len(self._extraction_data.users)} users from Minecraft dataset")
         return self._extraction_data

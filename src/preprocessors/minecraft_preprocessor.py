@@ -32,23 +32,23 @@ class MinecraftPreprocessor(BasePreprocessor):
         for user in extraction_data.users:
             logger.info(f"Preprocessing user [TRAINING]: {user.id}")
 
-            session = user.training_dataframe["session"].values
-            authentic = user.training_dataframe["authentic"].values
+            session = user.training_sessions["session"].values
+            authentic = user.training_sessions["authentic"].values
             self._initialize_extracted_features_df(authentic, session)
-            self._extract_general_features_from_df(user.training_dataframe)
+            self._extract_general_features_from_df(user.training_sessions)
 
             training_statistical_df = self._extract_statistical_info_from_features_df()
-            user.training_dataframe = training_statistical_df
+            user.training_sessions = training_statistical_df
 
             logger.info(f"Preprocessing user [TEST]: {user.id}")
 
-            session = user.testing_dataframe["session"].values
-            authentic = user.testing_dataframe["authentic"].values
+            session = user.testing_sessions["session"].values
+            authentic = user.testing_sessions["authentic"].values
             self._initialize_extracted_features_df(authentic, session)
-            self._extract_general_features_from_df(user.testing_dataframe)
+            self._extract_general_features_from_df(user.testing_sessions)
 
             testing_statistical_df = self._extract_statistical_info_from_features_df()
-            user.testing_dataframe = testing_statistical_df
+            user.testing_sessions = testing_statistical_df
 
             logger.info(f"User {user.id} statistical features extracted")
 
@@ -59,8 +59,8 @@ class MinecraftPreprocessor(BasePreprocessor):
                 training_path_str = directory_path / "training.parquet"
                 testing_path_str = directory_path / "testing.parquet"
 
-                log_dataframe_file(training_path_str, user.training_dataframe)
-                log_dataframe_file(testing_path_str, user.testing_dataframe)
+                log_dataframe_file(training_path_str, user.training_sessions)
+                log_dataframe_file(testing_path_str, user.testing_sessions)
 
         return extraction_data
 

@@ -18,7 +18,7 @@ class HalfSplitter(BaseSplitter):
 
     def split(self, extraction_data: ExtractionData) -> ExtractionData:
         for user in extraction_data.users:
-            true_user_training_df = user.training_dataframe.copy()
+            true_user_training_df = user.training_sessions.copy()
 
             authentic_df_size = len(true_user_training_df)
             amount_of_support_users = len(extraction_data.users) - 1 # Excluding current user
@@ -29,12 +29,12 @@ class HalfSplitter(BaseSplitter):
                 if user.id == support_user.id:
                     continue
 
-                ith_false_user_training_df = support_user.training_dataframe.head(non_authentic_df_sizes).copy()
+                ith_false_user_training_df = support_user.training_sessions.head(non_authentic_df_sizes).copy()
                 ith_false_user_training_df["authentic"] = 0
                 all_training_dfs.append(ith_false_user_training_df)
 
             final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            user.training_dataframe = final_training_df
+            user.training_sessions = final_training_df
 
             if self.is_debug:
                 try:

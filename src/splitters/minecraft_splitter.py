@@ -42,9 +42,9 @@ class MinecraftSplitter(BaseSplitter):
                               support_users: list[UserDataDto],
                               extraction_data: ExtractionData):
         for main_user in main_users:
-            true_user_df = main_user.training_dataframe.copy() \
+            true_user_df = main_user.training_sessions.copy() \
                 if type_of_session == EnumTypeOfSession.TRAINING \
-                else main_user.testing_dataframe.copy()
+                else main_user.testing_sessions.copy()
 
             true_user_df["authentic"] = 1
 
@@ -57,9 +57,9 @@ class MinecraftSplitter(BaseSplitter):
                 if main_user.id == support_user.id:
                     continue
 
-                support_df = support_user.training_dataframe.head(non_authentic_df_sizes).copy() \
+                support_df = support_user.training_sessions.head(non_authentic_df_sizes).copy() \
                     if type_of_session == EnumTypeOfSession.TRAINING \
-                    else support_user.testing_dataframe.head(non_authentic_df_sizes).copy()
+                    else support_user.testing_sessions.head(non_authentic_df_sizes).copy()
 
                 support_df["authentic"] = 0
                 support_df["session"] = "Train" \
@@ -71,9 +71,9 @@ class MinecraftSplitter(BaseSplitter):
             final_df = pd.concat(all_dfs, ignore_index=True)
             original_user = extraction_data.get_user_by_id(main_user.id)
             if type_of_session == EnumTypeOfSession.TRAINING:
-                original_user.training_dataframe = final_df
+                original_user.training_sessions = final_df
             else:
-                original_user.testing_dataframe = final_df
+                original_user.testing_sessions = final_df
 
 
             if self.is_debug:

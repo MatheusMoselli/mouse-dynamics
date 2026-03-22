@@ -41,14 +41,14 @@ class RandomForestClassifier(BaseClassifier):
                 logger.info(f"User {user.id} is not valid for fitting")
                 continue
 
-            training_dataframe_df = user.training_dataframe.copy().dropna()
+            training_dataframe_df = user.training_sessions.copy().dropna()
             x_train = training_dataframe_df.drop(columns=["authentic","session"])
             y_train = training_dataframe_df["authentic"]
 
             self.model.fit(x_train, y_train)
 
             # Test model
-            testing_dataframe_df = user.testing_dataframe.copy().dropna()
+            testing_dataframe_df = user.testing_sessions.copy().dropna()
             x_test = testing_dataframe_df.drop(columns=["authentic","session"])
             y_test = testing_dataframe_df["authentic"]
 
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         df = pd.read_parquet(user_dir / "testing.parquet")
         logger.info(f"Test dataframe size for User #{user_data.id}: {len(df)}")
 
-        user_data.testing_dataframe = pd.read_parquet(user_dir / "testing.parquet")
+        user_data.testing_sessions = pd.read_parquet(user_dir / "testing.parquet")
         extraction_data.add_user(user_data)
 
     for training_file in feature_files_location.iterdir():
@@ -80,6 +80,6 @@ if __name__ == "__main__":
         logger.info("User ID: " + user_id)
 
         user_data = extraction_data.get_user_by_id(user_id)
-        user_data.training_dataframe = pd.read_parquet(training_file)
+        user_data.training_sessions = pd.read_parquet(training_file)
 
     random_forest.fit(extraction_data)

@@ -85,9 +85,9 @@ class BasePreprocessor(ABC):
         """
         pass
 
-    def _initialize_extracted_features_df(self, authentic_arr: np.ndarray, session_arr: np.ndarray):
+    def _initialize_extracted_features_df(self, authentic_arr: np.ndarray):
         self.__features_dataframe = None
-        self._extracted_features = { "session": session_arr, "authentic": authentic_arr }
+        self._extracted_features = { "authentic": authentic_arr }
 
     def _calculate_basic_axis_features(self, x_axis_arr: np.ndarray, y_axis_arr: np.ndarray, time_arr: np.ndarray):
         self._extracted_features["x"] = x_axis_arr
