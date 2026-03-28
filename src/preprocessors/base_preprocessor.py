@@ -1,96 +1,191 @@
 """
 Generic preprocessor for feature extraction and statistical analysis.
 """
-from abc import ABC, abstractmethod
-from src.dto import ExtractionData
-import pandas as pd
+from pathlib import Path
 import numpy as np
+import pandas as pd
 import logging
 
+from src.dto import ExtractionData
+from src.utils.log_file import log_dataframe_sessions
 
 logger = logging.getLogger(__name__)
 
-class BasePreprocessor(ABC):
+# Columns that carry metadata.
+_META_COLS = frozenset({"x", "y", "timestamp", "authentic", "session"})
+
+# The four statistics computed for every feature column.
+_STAT_FUNCS = ["mean", "std", "max", "min"]
+
+
+class BasePreprocessor:
     """
-    Extract behavioral biometric features from mouse trajectory data.
+    Base class for all mouse-dynamics feature preprocessors.
 
-    The extractor can process trajectories in sequential windows, extracting features
-    from each window to create a sequence of feature vectors.
+    Provides a complete, concrete preprocessing pipeline that subclasses inherit
+    without any overriding required.
     """
 
-    # Basic Axis
-    _diff_x_axis_arr = np.array([])
-    _diff_y_axis_arr = np.array([])
-    _diff_time_arr = np.array([])
-    _traveled_distance = np.array([])
-    _curve_length = np.array([])
+    # Number of trajectory points grouped into one statistical window.
+    WINDOW_SIZE: int = 10
 
-    # Speed
-    _speed = np.array([])
-    _horizontal_speed = np.array([])
-    _vertical_speed = np.array([])
+    _diff_x_axis_arr: np.ndarray = np.array([])
+    _diff_y_axis_arr: np.ndarray = np.array([])
+    _diff_time_arr: np.ndarray = np.array([])
+    _traveled_distance: np.ndarray = np.array([])
+    curve_length: np.ndarray = np.array([])
 
-    # Acceleration
-    _acceleration = np.array([])
-    _horizontal_acceleration = np.array([])
-    _vertical_acceleration = np.array([])
+    _speed: np.ndarray = np.array([])
+    _horizontal_speed: np.ndarray = np.array([])
+    _vertical_speed: np.ndarray = np.array([])
+
+    _acceleration: np.ndarray = np.array([])
+    _horizontal_acceleration: np.ndarray = np.array([])
+    _vertical_acceleration: np.ndarray = np.array([])
 
     _extracted_features: dict = {}
     __features_dataframe: pd.DataFrame | None = None
 
     def __init__(self, is_debug: bool = False):
         """
-        Class initialization.
-        :param is_debug: Is the classifier being run in debug mode.
+        :param is_debug: When True, write intermediate DataFrames to parquet.
         """
         self.is_debug = is_debug
+
+    def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
+        """
+        Preprocess all sessions for every user in extraction_data.
+
+        :param extraction_data: Users with raw session DataFrames
+        :return: Same object with session DataFrames replaced by statistics DataFrames
+        """
+        for user in extraction_data.users:
+            logger.info(f"Preprocessing user [TRAINING]: {user.id}")
+            user.training_sessions = self._process_sessions(user.training_sessions)
+
+            logger.info(f"Preprocessing user [TEST]: {user.id}")
+            user.testing_sessions = self._process_sessions(user.testing_sessions)
+
+            logger.info(f"User {user.id}: statistical features extracted")
+
+            if self.is_debug:
+                self._write_debug_files(user)
+
+        return extraction_data
+
+    def _process_sessions(
+        self, sessions: dict[str, pd.DataFrame]
+    ) -> dict[str, pd.DataFrame]:
+        """
+        Extract the features and obtain the statistical features for each
+
+        :param sessions: Raw session DataFrames keyed by session name
+        :return: New dict with the same keys but statistics DataFrames as values
+        """
+        result: dict[str, pd.DataFrame] = {}
+
+        for session_name, session_df in sessions.items():
+            if session_df.empty:
+                logger.warning(f"Session '{session_name}' is empty, skipping.")
+                continue
+            result[session_name] = self._process_single_session(session_df)
+
+        return result
+
+    def _process_single_session(self, session_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Full pipeline for a single session DataFrame:
+          1. Extract per-point kinematic features (velocity, acceleration, angles…)
+          2. Deduplicate consecutive identical (x, y) points
+          3. Slice into non-overlapping windows of WINDOW_SIZE
+          4. Compute [mean, std, max, min] per window in one vectorised pass
+
+        :param session_df: Raw DataFrame for a single session
+        :return: Statistics DataFrame with one row per window
+        """
+        authentic = int(session_df["authentic"].iat[0])
+
+        x = session_df["x"].to_numpy(dtype=float)
+        y = session_df["y"].to_numpy(dtype=float)
+        t = session_df["timestamp"].to_numpy(dtype=float)
+
+        self._initialize_extracted_features_df(session_df["authentic"].to_numpy())
+        self._calculate_basic_axis_features(x, y, t)
+        self._calculate_speed_features()
+        self._calculate_acceleration_features()
+        self._calculate_angle_features()
+
+        features_df = self.features_dataframe.copy()
+
+        xy = features_df[["x", "y"]].to_numpy()
+        is_unique = np.ones(len(xy), dtype=bool)
+        is_unique[1:] = np.any(xy[1:] != xy[:-1], axis=1)
+        features_df = features_df.loc[is_unique].reset_index(drop=True)
+
+        if features_df.empty:
+            return pd.DataFrame()
+
+        return self._extract_statistics(features_df, authentic)
+
+    def _extract_statistics(
+        self, features_df: pd.DataFrame, authentic: int
+    ) -> pd.DataFrame:
+        """
+        Divide features_df into non-overlapping windows of WINDOW_SIZE rows and
+        compute [mean, std, max, min] for every feature column in a single pass.
+
+        :param features_df: Deduplicated per-point feature DataFrame for one session
+        :param authentic: Authenticity label (0 or 1) for this session
+        :return: Statistics DataFrame with one row per window
+        """
+        feature_cols = [c for c in features_df.columns if c not in _META_COLS]
+        n = len(features_df)
+        window_ids = np.arange(n) // self.WINDOW_SIZE
+
+        agg_df = features_df[feature_cols].groupby(window_ids).agg(_STAT_FUNCS)
+
+        agg_df.columns = [f"{stat}_{col}" for col, stat in agg_df.columns]
+        agg_df = agg_df.reset_index(drop=True)
+
+        timestamps = features_df["timestamp"].to_numpy()
+        window_starts = np.arange(0, n, self.WINDOW_SIZE)
+        window_ends = np.minimum(window_starts + 1, n - 1)
+
+        acc_beginning_time = np.where(
+            window_starts < window_ends,
+            timestamps[window_ends] - timestamps[window_starts],
+            0.0,
+        )
+        agg_df["acc_beginning_time"] = acc_beginning_time[: len(agg_df)]
+        agg_df["authentic"] = authentic
+
+        return agg_df
+
+    def _write_debug_files(self, user) -> None:
+        """
+        Write the processed session DataFrames for one user to parquet.
+
+        :param user: UserDataDto whose sessions should be written
+        """
+        directory_path = Path(f"../datasets/features/user{user.id}")
+        directory_path.mkdir(parents=True, exist_ok=True)
+        log_dataframe_sessions(directory_path / "training", user.training_sessions)
+        log_dataframe_sessions(directory_path / "testing", user.testing_sessions)
 
     @property
     def features_dataframe(self) -> pd.DataFrame:
         if self.__features_dataframe is None:
             self.__features_dataframe = pd.DataFrame(self._extracted_features)
-
         return self.__features_dataframe
-
-    @abstractmethod
-    def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
-        """
-        Preprocess all the dataframes by user.
-
-        :param extraction_data: The users standardized dataframes
-        :return: ExtractionData with features extracted per user
-        """
-        pass
-
-    @abstractmethod
-    def _extract_general_features_from_df(self, dataframe: pd.DataFrame) -> None:
-        """
-        Extract all movement features from a single session trajectory.
-
-        :param dataframe: DataFrame for one session
-        """
-        pass
-
-    @abstractmethod
-    def _extract_statistical_info_from_features_df(self) -> pd.DataFrame:
-        """
-        Group extracted features into windows and compute statistics
-        (mean, std, min, max) per window.
-
-        :return: A dataframe with one row per window containing statistical features
-        """
-        pass
 
     def _initialize_extracted_features_df(self, authentic_arr: np.ndarray) -> None:
         """
         Reset internal feature state before processing a new session.
 
-        Only the authentic label array is stored here. Session identity is
-        tracked externally (as the dict key in UserDataDto) so that features
-        are computed on clean, per-session numpy arrays with no cross-session
-        boundary contamination from np.diff().
+        Session identity is tracked externally as the dict key so that features
+        are computed on clean per-session arrays.
 
-        :param authentic_arr: Array of authenticity labels for the session rows
+        :param authentic_arr: Authenticity label array for the session rows
         """
         self.__features_dataframe = None
         self._extracted_features = {"authentic": authentic_arr}
@@ -125,8 +220,9 @@ class BasePreprocessor(ABC):
         self._extracted_features["elapsed_time"] = self._diff_time_arr
 
         # 4. Movement Offset
-        movement_offset = self.curve_length - self._traveled_distance
-        self._extracted_features["movement_offset"] = movement_offset
+        self._extracted_features["movement_offset"] = (
+            self.curve_length - self._traveled_distance
+        )
 
         # 5. Deviation Distance
         # TODO: Create a preprocessing version using discrete formulas
@@ -135,12 +231,10 @@ class BasePreprocessor(ABC):
             + (x_axis_arr[2:] - x_axis_arr[:-2]) * y_axis_arr[1:-1]
             + (x_axis_arr[:-2] * y_axis_arr[2:] - x_axis_arr[2:] * y_axis_arr[:-2])
         )
-
         deviation_distance_lower_part = np.sqrt(
             (x_axis_arr[2:] - x_axis_arr[:-2]) ** 2
             + (y_axis_arr[2:] - y_axis_arr[:-2]) ** 2
         )
-
         deviation_distance = np.zeros_like(deviation_distance_lower_part)
         np.divide(
             deviation_distance_upper_part,
@@ -148,8 +242,9 @@ class BasePreprocessor(ABC):
             out=deviation_distance,
             where=deviation_distance_lower_part != 0,
         )
-        deviation_distance = np.concatenate(([0], deviation_distance, [0]))
-        self._extracted_features["deviation_distance"] = deviation_distance
+        self._extracted_features["deviation_distance"] = np.concatenate(
+            ([0], deviation_distance, [0])
+        )
 
         # 6. Straightness / Efficiency
         straightness = np.zeros_like(self._diff_time_arr)
@@ -162,20 +257,16 @@ class BasePreprocessor(ABC):
         self._extracted_features["straightness"] = straightness
 
         # 7. Jitter
-        smoothed_x_axis = np.convolve(
+        smoothed_x = np.convolve(
             x_axis_arr, np.ones(window_size) / window_size, mode="same"
         )
-        smoothed_y_axis = np.convolve(
+        smoothed_y = np.convolve(
             y_axis_arr, np.ones(window_size) / window_size, mode="same"
         )
-
-        diff_smoothed_x_axis = np.concatenate(([0], np.diff(smoothed_x_axis)))
-        diff_smoothed_y_axis = np.concatenate(([0], np.diff(smoothed_y_axis)))
-
         smoothed_path_length = np.sqrt(
-            diff_smoothed_x_axis ** 2 + diff_smoothed_y_axis ** 2
+            np.concatenate(([0], np.diff(smoothed_x))) ** 2
+            + np.concatenate(([0], np.diff(smoothed_y))) ** 2
         )
-
         jitter = np.zeros_like(self._diff_time_arr)
         np.divide(
             self._traveled_distance,
@@ -186,7 +277,7 @@ class BasePreprocessor(ABC):
         self._extracted_features["jitter"] = jitter
 
     def _calculate_speed_features(self) -> None:
-        # 8. Velocity / Speed
+        # 8. Speed
         self._speed = np.zeros_like(self._diff_time_arr)
         np.divide(
             self._traveled_distance,
@@ -217,8 +308,11 @@ class BasePreprocessor(ABC):
         self._extracted_features["vertical_speed"] = self._vertical_speed
 
     def _calculate_acceleration_features(self) -> None:
-        # 11. Horizontal Acceleration
         diff_x_speed_arr = np.concatenate(([0], np.diff(self._horizontal_speed)))
+        diff_y_speed_arr = np.concatenate(([0], np.diff(self._vertical_speed)))
+        diff_speed_arr = np.concatenate(([0], np.diff(self._speed)))
+
+        # 11. Horizontal Acceleration
         self._horizontal_acceleration = np.zeros_like(self._diff_time_arr)
         np.divide(
             diff_x_speed_arr,
@@ -229,7 +323,6 @@ class BasePreprocessor(ABC):
         self._extracted_features["horizontal_acceleration"] = self._horizontal_acceleration
 
         # 12. Vertical Acceleration
-        diff_y_speed_arr = np.concatenate(([0], np.diff(self._vertical_speed)))
         self._vertical_acceleration = np.zeros_like(self._diff_time_arr)
         np.divide(
             diff_y_speed_arr,
@@ -240,7 +333,6 @@ class BasePreprocessor(ABC):
         self._extracted_features["vertical_acceleration"] = self._vertical_acceleration
 
         # 13. Acceleration
-        diff_speed_arr = np.concatenate(([0], np.diff(self._speed)))
         self._acceleration = np.zeros_like(self._diff_time_arr)
         np.divide(
             diff_speed_arr,
@@ -252,46 +344,39 @@ class BasePreprocessor(ABC):
 
         # 14. Average Speed against distance
         avg_speed_against_distance = np.zeros_like(self.curve_length)
-        cumulative_speed_avg = np.cumsum(self._speed) / np.arange(1, len(self._speed) + 1)
         np.divide(
-            cumulative_speed_avg,
+            np.cumsum(self._speed) / np.arange(1, len(self._speed) + 1),
             self.curve_length,
             out=avg_speed_against_distance,
             where=self.curve_length != 0,
         )
         self._extracted_features["avg_speed_against_distance"] = avg_speed_against_distance
 
-        # 15. Horizontal Acceleration against Resultant Acceleration
-        horizontal_acceleration_against_resultant_acceleration = np.zeros_like(diff_speed_arr)
+        # 15. Horizontal Acceleration vs Resultant
+        h_acc_vs_resultant = np.zeros_like(diff_speed_arr)
         np.divide(
             diff_x_speed_arr,
             diff_speed_arr,
-            out=horizontal_acceleration_against_resultant_acceleration,
+            out=h_acc_vs_resultant,
             where=diff_speed_arr != 0,
         )
-        self._extracted_features["x_acceleration_vs_resultant"] = (
-            horizontal_acceleration_against_resultant_acceleration
-        )
+        self._extracted_features["x_acceleration_vs_resultant"] = h_acc_vs_resultant
 
-        # 16. Vertical Acceleration against Resultant Acceleration
-        vertical_acceleration_against_resultant_acceleration = np.zeros_like(diff_speed_arr)
+        # 16. Vertical Acceleration vs Resultant
+        v_acc_vs_resultant = np.zeros_like(diff_speed_arr)
         np.divide(
             diff_y_speed_arr,
             diff_speed_arr,
-            out=vertical_acceleration_against_resultant_acceleration,
+            out=v_acc_vs_resultant,
             where=diff_speed_arr != 0,
         )
-        self._extracted_features["y_acceleration_vs_resultant"] = (
-            vertical_acceleration_against_resultant_acceleration
-        )
+        self._extracted_features["y_acceleration_vs_resultant"] = v_acc_vs_resultant
 
         # 17. Average X Acceleration against distance
         avg_x_acc_against_distance = np.zeros_like(self.curve_length)
-        cumulative_x_acc_avg = np.cumsum(self._horizontal_acceleration) / np.arange(
-            1, len(self._horizontal_acceleration) + 1
-        )
         np.divide(
-            cumulative_x_acc_avg,
+            np.cumsum(self._horizontal_acceleration)
+            / np.arange(1, len(self._horizontal_acceleration) + 1),
             self.curve_length,
             out=avg_x_acc_against_distance,
             where=self.curve_length != 0,
@@ -300,11 +385,9 @@ class BasePreprocessor(ABC):
 
         # 18. Average Y Acceleration against distance
         avg_y_acc_against_distance = np.zeros_like(self.curve_length)
-        cumulative_y_acc_avg = np.cumsum(self._vertical_acceleration) / np.arange(
-            1, len(self._vertical_acceleration) + 1
-        )
         np.divide(
-            cumulative_y_acc_avg,
+            np.cumsum(self._vertical_acceleration)
+            / np.arange(1, len(self._vertical_acceleration) + 1),
             self.curve_length,
             out=avg_y_acc_against_distance,
             where=self.curve_length != 0,
@@ -325,11 +408,12 @@ class BasePreprocessor(ABC):
         )
         self._extracted_features["tangential_acceleration"] = tangential_acceleration
 
+        diff_tang_acc = np.concatenate(([0], np.diff(tangential_acceleration)))
+
         # 21. Tangential Jerk
-        diff_tang_acc_arr = np.concatenate(([0], np.diff(tangential_acceleration)))
         tangential_jerk = np.zeros_like(self._diff_time_arr)
         np.divide(
-            diff_tang_acc_arr,
+            diff_tang_acc,
             self._diff_time_arr,
             out=tangential_jerk,
             where=self._diff_time_arr != 0,
@@ -338,30 +422,20 @@ class BasePreprocessor(ABC):
 
         # 22. Angle of movement
         angle = np.zeros_like(self._diff_time_arr)
-        diff_tangential_acc = np.concatenate(([0], np.diff(tangential_acceleration)))
         np.divide(
-            diff_tangential_acc,
+            diff_tang_acc,
             self._diff_time_arr,
             out=angle,
             where=self._diff_time_arr != 0,
         )
         self._extracted_features["angle"] = angle
 
-        # 23. Rate of curvature
-        # TODO
+        # 23. Rate of curvature — TODO
 
         # 24. Total Angles
-        total_angles = np.cumsum(angle)
-        self._extracted_features["total_angles"] = total_angles
+        self._extracted_features["total_angles"] = np.cumsum(angle)
 
-        # 25. Regularity
-        # TODO
-
-        # 26. Trajectory of Center of Mass
-        # TODO
-
-        # 27. Scattering Coefficient
-        # TODO
+        # 25–27. Regularity / Center of Mass / Scattering Coefficient — TODO
 
         # 28. Curvature Velocity
         curvature_velocity = np.zeros_like(tangential_acceleration)
@@ -371,20 +445,6 @@ class BasePreprocessor(ABC):
         )
         self._extracted_features["curvature_velocity"] = curvature_velocity
 
-        # 29. Central Moments
-        # TODO
-
-        # 30. Self-Intersection
-        # TODO
-
-        # 31. Angle Feature (Law of cosines)
-        # TODO
-
-        # 32. Acceleration Beginning time
-        # Calculated in the split df (end)
-
-        # 33. Skewness (third moment)
-        # TODO
-
-        # 34. Kurtosis (fourth moment)
-        # TODO
+        # 29–31. Central Moments / Self-Intersection / Angle (cosines) — TODO
+        # 32. Acceleration Beginning time — calculated in _extract_statistics
+        # 33–34. Skewness / Kurtosis — TODO

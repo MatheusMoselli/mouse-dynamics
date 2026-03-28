@@ -5,11 +5,8 @@ from src.dto import UserDataDto
 
 
 class ExtractionData:
-    __users: list[UserDataDto] = []
-
     def __init__(self, users: list[UserDataDto] | None = None):
-        if users is not None:
-            self.__users = users
+        self.__users: list[UserDataDto] = list(users) if users is not None else []
 
     def add_user(self, user: UserDataDto) -> UserDataDto:
         self.__users.append(user)
@@ -23,5 +20,4 @@ class ExtractionData:
         for user in self.__users:
             if user.id == user_id:
                 return user
-
         return None

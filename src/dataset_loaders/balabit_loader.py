@@ -1,9 +1,9 @@
 """
-Implementation for loading the balabit dataset. For it to work properly, you should put the hole dataset
-in the following path: mouse-dynamics(root)/raw/balabit/ORIGINAL_DATASET_HERE
+Loader for the Balabit Mouse Dynamics dataset.
+
+Dataset path: mouse-dynamics(root)/datasets/raw/balabit/
 """
 from src.dataset_loaders import BaseDatasetLoader
-from src.utils.log_file import log_dataframe_sessions
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 from pathlib import Path
 import pandas as pd
@@ -12,19 +12,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 class BalabitLoader(BaseDatasetLoader):
-    """Loader for `Balabit` Mouse Dynamics dataset."""
+    """Loader for the Balabit Mouse Dynamics dataset."""
 
-    def __init__(self,  is_debug: bool = False):
-        """
-        Initialize the dataset loader.
-        """
-        super().__init__(is_debug)
-        self.data_path = Path("../datasets/raw/balabit")
-        self._extraction_data: ExtractionData = ExtractionData()
+    def __init__(self, is_debug: bool = False):
+        super().__init__(
+            data_path=Path("../datasets/raw/balabit"),
+            is_debug=is_debug,
+        )
+
         self._authenticity_labels: pd.Series | None = None
-
-        if not self.data_path.exists():
-            raise FileNotFoundError(f"Data path not found: {self.data_path}")
 
     def load(self) -> ExtractionData:
         """
@@ -33,23 +29,18 @@ class BalabitLoader(BaseDatasetLoader):
         Expected structure:
             datasets/raw/balabit/
             ├── test_files/
-            ├──── user1/
-            ├────── session_0 (without extension)
-            ├────── session_1
-            ├────── ...
-            ├──── user2/
-            ├──── ...
+            │   ├── user1/
+            │   │   ├── session_0  (no extension)
+            │   │   └── session_1
+            │   └── user2/
             └── training_files/
 
-
         CSV format: record timestamp, client timestamp, button, state, x, y
-        :return: Dictionary mapping user_id to DataFrame with standardized columns.
         """
-        authenticity_labels_path = self.data_path / "public_labels.csv"
-        if authenticity_labels_path.exists():
+        labels_path = self.data_path / "public_labels.csv"
+        if labels_path.exists():
             self._authenticity_labels = (
-                pd.read_csv(authenticity_labels_path)
-                .set_index("filename")["is_illegal"]
+                pd.read_csv(labels_path).set_index("filename")["is_illegal"]
             )
 
         self._load_users(self.data_path / "training_files", EnumTypeOfSession.TRAINING)
@@ -66,24 +57,20 @@ class BalabitLoader(BaseDatasetLoader):
             if not directory.is_dir():
                 continue
 
-            user_id = directory.stem.replace("user","")
-            user_data = self._extraction_data.get_user_by_id(user_id)
-            if user_data is None:
-                user_data = self._extraction_data.add_user(UserDataDto(user_id))
-
+            user_id = directory.stem.replace("user", "")
+            user_data = self._get_or_create_user(user_id)
             self._load_sessions(directory, user_data, type_of_session)
 
-
     def _load_sessions(
-            self,
-            sessions_directory: Path,
-            user_data: UserDataDto,
-            type_of_session: EnumTypeOfSession
+        self,
+        sessions_directory: Path,
+        user_data: UserDataDto,
+        type_of_session: EnumTypeOfSession,
     ) -> None:
-        for session in sessions_directory.iterdir():
-            session_df = pd.read_csv(session)
+        for session_path in sessions_directory.iterdir():
+            session_df = pd.read_csv(session_path)
 
-            standardized_session_df = self._standardize_columns(
+            standardized_df = self._standardize_columns(
                 session_df,
                 x_col_name="x",
                 y_col_name="y",
@@ -91,30 +78,17 @@ class BalabitLoader(BaseDatasetLoader):
                 action_col_name="button",
             )
 
-            session_name = session.stem
+            session_name = session_path.stem
 
             if type_of_session == EnumTypeOfSession.TRAINING:
-                standardized_session_df["authentic"] = 1
+                standardized_df["authentic"] = 1
             else:
                 if self._authenticity_labels is None:
-                    raise RuntimeError("public_labels.csv not found; cannot label test sessions.")
-
+                    raise RuntimeError( "public_labels.csv not found; cannot label test sessions.")
                 label = self._authenticity_labels.get(session_name)
                 if label is None:
                     logger.warning(f"No label found for session {session_name!r}, skipping.")
                     continue
+                standardized_df["authentic"] = int(label)
 
-                standardized_session_df["authentic"] = int(label)
-
-            user_data.append_session(session_name, standardized_session_df, type_of_session)
-
-    def _write_debug_files(self) -> None:
-        for user in self._extraction_data.users:
-            directory_path = Path(f"../datasets/base/user{user.id}")
-            directory_path.mkdir(parents=True, exist_ok=True)
-
-            training_path_str = directory_path / "training"
-            testing_path_str = directory_path / "testing"
-
-            log_dataframe_sessions(training_path_str, user.training_sessions)
-            log_dataframe_sessions(testing_path_str, user.testing_sessions)
+            user_data.append_session(session_name, standardized_df, type_of_session)
