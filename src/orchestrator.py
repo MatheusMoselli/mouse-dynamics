@@ -101,9 +101,9 @@ class Orchestrator:
         logger.info(f"Cleaning old debug files - Features.")
         self.__rebuild_directory("../datasets/features")
 
-        # 3. Deleting training files:
-        logger.info(f"Cleaning old debug files - Training.")
-        self.__rebuild_directory("../datasets/training")
+        # 3. Deleting split files:
+        logger.info(f"Cleaning old debug files - Split.")
+        self.__rebuild_directory("../datasets/split")
 
     def run(self):
         if self._is_debug:

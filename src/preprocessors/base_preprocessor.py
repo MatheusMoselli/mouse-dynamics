@@ -161,17 +161,6 @@ class BasePreprocessor:
 
         return agg_df
 
-    def _write_debug_files(self, user) -> None:
-        """
-        Write the processed session DataFrames for one user to parquet.
-
-        :param user: UserDataDto whose sessions should be written
-        """
-        directory_path = Path(f"../datasets/features/user{user.id}")
-        directory_path.mkdir(parents=True, exist_ok=True)
-        log_dataframe_sessions(directory_path / "training", user.training_sessions)
-        log_dataframe_sessions(directory_path / "testing", user.testing_sessions)
-
     @property
     def features_dataframe(self) -> pd.DataFrame:
         if self.__features_dataframe is None:
@@ -448,3 +437,15 @@ class BasePreprocessor:
         # 29–31. Central Moments / Self-Intersection / Angle (cosines) — TODO
         # 32. Acceleration Beginning time — calculated in _extract_statistics
         # 33–34. Skewness / Kurtosis — TODO
+
+    @staticmethod
+    def _write_debug_files(user) -> None:
+        """
+        Write the processed session DataFrames for one user to parquet.
+
+        :param user: UserDataDto whose sessions should be written
+        """
+        directory_path = Path(f"../datasets/features/user{user.id}")
+        directory_path.mkdir(parents=True, exist_ok=True)
+        log_dataframe_sessions(directory_path / "training", user.training_sessions)
+        log_dataframe_sessions(directory_path / "testing", user.testing_sessions)

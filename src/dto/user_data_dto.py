@@ -78,6 +78,21 @@ class UserDataDto:
             else self._testing_sessions
         )
 
+    def merged_sessions(self, session_type: EnumTypeOfSession) -> pd.DataFrame:
+        """
+        Return a single flat DataFrame containing all rows from every session
+        of the given type, concatenated in insertion order.
+
+        :param session_type: TRAINING or TESTING
+        :return: Concatenated DataFrame, or an empty DataFrame if no sessions exist
+        """
+        sessions = self.get_sessions_by_type(session_type)
+
+        if not sessions:
+            return pd.DataFrame()
+
+        return pd.concat(sessions.values(), ignore_index=True)
+
     def is_user_valid(self) -> bool:
         return (
             self._id is not None

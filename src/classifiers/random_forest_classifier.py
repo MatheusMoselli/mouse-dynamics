@@ -37,22 +37,17 @@ class RandomForestClassifier(BaseClassifier):
         :param extraction_data: The user`s dataframes.
         """
         for user in extraction_data.users:
-            if not user.is_user_valid():
-                logger.info(f"User {user.id} is not valid for fitting")
+            data = self._prepare_user_data(user)
+
+            if data is None:
+                logger.info(f"User {user.id} skipped (invalid or empty data).")
                 continue
 
-            training_dataframe_df = user.training_sessions.copy().dropna()
-            x_train = training_dataframe_df.drop(columns=["authentic","session"])
-            y_train = training_dataframe_df["authentic"]
+            x_train, y_train, x_test, y_test = data
 
             self.model.fit(x_train, y_train)
-
-            # Test model
-            testing_dataframe_df = user.testing_sessions.copy().dropna()
-            x_test = testing_dataframe_df.drop(columns=["authentic","session"])
-            y_test = testing_dataframe_df["authentic"]
-
             y_prediction = self.model.predict(x_test)
+
             print("Classification report for classifier " + user.id + ":")
             print(classification_report(y_test, y_prediction))
 
