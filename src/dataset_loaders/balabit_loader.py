@@ -89,6 +89,6 @@ class BalabitLoader(BaseDatasetLoader):
                 if label is None:
                     logger.warning(f"No label found for session {session_name!r}, skipping.")
                     continue
-                standardized_df["authentic"] = int(label)
+                standardized_df["authentic"] = 1 if int(label) == 0 else 0 # if label = 1, illegal
 
             user_data.append_session(session_name, standardized_df, type_of_session)

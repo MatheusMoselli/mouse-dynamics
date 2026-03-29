@@ -39,7 +39,6 @@ class HalfSplitter(BaseSplitter):
                 all_training_dfs.append(support_df)
 
             final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            user.training_sessions = final_training_df
             user.training_sessions = { "_merged": final_training_df }
 
             merged_testing_df = user.merged_sessions(EnumTypeOfSession.TESTING)

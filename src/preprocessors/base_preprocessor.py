@@ -236,14 +236,14 @@ class BasePreprocessor:
         )
 
         # 6. Straightness / Efficiency
-        straightness = np.zeros_like(self._diff_time_arr)
-        np.divide(
-            self._traveled_distance,
-            self.curve_length,
-            out=straightness,
-            where=self.curve_length != 0,
-        )
-        self._extracted_features["straightness"] = straightness
+        # straightness = np.zeros_like(self._diff_time_arr)
+        # np.divide(
+        #     self._traveled_distance,
+        #     self.curve_length,
+        #     out=straightness,
+        #     where=self.curve_length != 0,
+        # )
+        # self._extracted_features["straightness"] = straightness
 
         # 7. Jitter
         smoothed_x = np.convolve(
@@ -410,13 +410,7 @@ class BasePreprocessor:
         self._extracted_features["tangential_jerk"] = tangential_jerk
 
         # 22. Angle of movement
-        angle = np.zeros_like(self._diff_time_arr)
-        np.divide(
-            diff_tang_acc,
-            self._diff_time_arr,
-            out=angle,
-            where=self._diff_time_arr != 0,
-        )
+        angle = np.arctan2(self._diff_y_axis_arr, self._diff_x_axis_arr)
         self._extracted_features["angle"] = angle
 
         # 23. Rate of curvature — TODO
@@ -428,10 +422,15 @@ class BasePreprocessor:
 
         # 28. Curvature Velocity
         curvature_velocity = np.zeros_like(tangential_acceleration)
+        curvature_division = np.power(1 + np.power(tangential_acceleration, 2), 3 / 2)
+
         np.divide(
             tangential_jerk,
-            np.power(1 + np.power(tangential_acceleration, 2), 3 / 2),
+            curvature_division,
+            out=curvature_velocity,
+            where=curvature_division != 0
         )
+
         self._extracted_features["curvature_velocity"] = curvature_velocity
 
         # 29–31. Central Moments / Self-Intersection / Angle (cosines) — TODO

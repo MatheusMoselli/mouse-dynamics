@@ -21,14 +21,7 @@ class RandomForestClassifier(BaseClassifier):
     """
 
     def __init__(self, is_debug: bool = False):
-        # Create the model
         super().__init__(is_debug)
-
-        self.model = SkLearnRandomForestClassifier(
-            n_estimators=200,
-            random_state=42,
-            n_jobs=-2
-        )
 
     def fit(self, extraction_data: ExtractionData):
         """
@@ -45,36 +38,14 @@ class RandomForestClassifier(BaseClassifier):
 
             x_train, y_train, x_test, y_test = data
 
-            self.model.fit(x_train, y_train)
-            y_prediction = self.model.predict(x_test)
+            model = SkLearnRandomForestClassifier(
+                n_estimators=200,
+                random_state=42,
+                n_jobs=-2
+            )
+
+            model.fit(x_train, y_train)
+            y_prediction = model.predict(x_test)
 
             print("Classification report for classifier " + user.id + ":")
             print(classification_report(y_test, y_prediction))
-
-if __name__ == "__main__":
-    random_forest = RandomForestClassifier(is_debug=True)
-    feature_files_location = Path("../../datasets/training")
-    test_files_location = Path("../../datasets/features")
-
-    extraction_data = ExtractionData()
-
-    for user_dir in test_files_location.iterdir():
-        user_data = UserDataDto(user_dir.stem.replace("user", ""))
-        df = pd.read_parquet(user_dir / "testing.parquet")
-        logger.info(f"Test dataframe size for User #{user_data.id}: {len(df)}")
-
-        user_data.testing_sessions = pd.read_parquet(user_dir / "testing.parquet")
-        extraction_data.add_user(user_data)
-
-    for training_file in feature_files_location.iterdir():
-        if training_file.suffix != ".parquet":
-            continue
-
-        user_id = training_file.stem.replace("user", "")
-
-        logger.info("User ID: " + user_id)
-
-        user_data = extraction_data.get_user_by_id(user_id)
-        user_data.training_sessions = pd.read_parquet(training_file)
-
-    random_forest.fit(extraction_data)
