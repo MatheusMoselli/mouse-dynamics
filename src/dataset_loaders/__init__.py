@@ -3,12 +3,14 @@ Centralizes the logic for reading datasets and standardizing the resulting dataf
 """
 from .base_dataset_loader import BaseDatasetLoader
 from .balabit_loader import BalabitLoader
+from .bogazici_loader import BogaziciLoader
 from .minecraft_loader import MinecraftLoader
 from enum import Enum
 
 class EnumDatasets(Enum):
     BALABIT = "balabit"
     MINECRAFT = "minecraft"
+    BOGAZICI = "bogazici"
 
 def load_dataset(dataset_name: EnumDatasets, is_debug: bool) -> BaseDatasetLoader:
     """
@@ -21,6 +23,7 @@ def load_dataset(dataset_name: EnumDatasets, is_debug: bool) -> BaseDatasetLoade
     loaders = {
         EnumDatasets.BALABIT: BalabitLoader,
         EnumDatasets.MINECRAFT: MinecraftLoader,
+        EnumDatasets.BOGAZICI: BogaziciLoader,
     }
 
     if dataset_name in loaders:

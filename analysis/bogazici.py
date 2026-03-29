@@ -6,7 +6,7 @@ from src.splitters import EnumSplitters
 
 if __name__ == "__main__":
     orchestrator = Orchestrator(
-        dataset=EnumDatasets.BALABIT,
+        dataset=EnumDatasets.BOGAZICI,
         splitter=EnumSplitters.HALF,
         classifier=EnumClassifiers.OPTIMIZED_RANDOM_FOREST,
         preprocessor=EnumPreprocessors.KHAN,
