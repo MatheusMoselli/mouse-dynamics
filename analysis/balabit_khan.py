@@ -8,7 +8,7 @@ if __name__ == "__main__":
     orchestrator = Orchestrator(
         dataset=EnumDatasets.BALABIT,
         splitter=EnumSplitters.HALF,
-        classifier=EnumClassifiers.MLP,
+        classifier=EnumClassifiers.KNN,
         preprocessor=EnumPreprocessors.KHAN,
         is_debug=True
     )
