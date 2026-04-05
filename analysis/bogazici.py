@@ -8,7 +8,7 @@ if __name__ == "__main__":
     orchestrator = Orchestrator(
         dataset=EnumDatasets.BOGAZICI,
         splitter=EnumSplitters.HALF,
-        classifier=EnumClassifiers.OPTIMIZED_RANDOM_FOREST,
+        classifier=EnumClassifiers.RANDOM_FOREST,
         preprocessor=EnumPreprocessors.KHAN,
         is_debug=True
     )
