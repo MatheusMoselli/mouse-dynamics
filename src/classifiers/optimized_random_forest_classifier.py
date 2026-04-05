@@ -6,10 +6,11 @@
     Trees in the forest use the best split strategy.
     see: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
 """
+import numpy as np
 import pandas as pd
 import optuna
 from sklearn.ensemble import RandomForestClassifier as SkLearnRandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, average_precision_score, precision_recall_curve
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from src.classifiers import BaseClassifier
 from src.dto import ExtractionData
@@ -17,7 +18,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-NUMBER_OF_TRIALS = 30
+NUMBER_OF_TRIALS = 3
 CROSS_VALIDATION_FOLDS = 3
 
 class OptimizedRandomForestClassifier(BaseClassifier):
@@ -116,15 +117,42 @@ class OptimizedRandomForestClassifier(BaseClassifier):
 
             # Treina modelo final com melhores hiperparâmetros
             best_model = self._train_best_model(best_params, x_train, y_train)
-            y_pred = best_model.predict(x_test)
+
+            y_prob = best_model.predict_proba(x_test)[:, 1]
+
+            best_threshold = self._find_best_threshold(y_test, y_prob)
+            y_pred = (y_prob >= best_threshold).astype(int)
+
+            pr_auc = average_precision_score(y_test, y_prob)
 
             print(f"\nClassification report for classifier {user.id} "
-                  f"[Optuna — best CV F1-macro: {best_cv_score:.4f}]:")
+                  f"[Optuna CV F1-macro: {best_cv_score:.4f} | "
+                  f"PR-AUC: {pr_auc:.4f} | "
+                  f"threshold: {best_threshold:.3f}]:")
 
             print(classification_report(y_test, y_pred))
 
             if self.is_debug:
                 self._print_feature_importance(best_model, x_train.columns.tolist())
+
+    @staticmethod
+    def _find_best_threshold(y_true: pd.Series, y_prob: np.ndarray) -> float:
+        """
+        Encontra o threshold que maximiza o F1-macro na curva Precision-Recall.
+
+        :param y_true: Labels verdadeiros (0 ou 1)
+        :param y_prob: Probabilidades preditas para a classe 1
+        :return: Threshold ótimo que maximiza F1-macro
+        """
+        precision, recall, thresholds = precision_recall_curve(y_true, y_prob)
+
+        # F1 por threshold — precision e recall têm len(thresholds)+1, ignoramos o último
+        f1_scores = (
+            2 * precision[:-1] * recall[:-1]
+            / (precision[:-1] + recall[:-1] + 1e-8)
+        )
+
+        return float(thresholds[np.argmax(f1_scores)])
 
     @staticmethod
     def _print_feature_importance(model: SkLearnRandomForestClassifier, feature_names: list[str]) -> None:

@@ -5,12 +5,10 @@
     Trees in the forest use the best split strategy.
     see: https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html
 """
-import pandas as pd
-from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier as SkLearnRandomForestClassifier
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, balanced_accuracy_score
 from src.classifiers import BaseClassifier
-from src.dto import ExtractionData, UserDataDto
+from src.dto import ExtractionData
 import logging
 
 logger = logging.getLogger(__name__)
@@ -25,7 +23,7 @@ class RandomForestClassifier(BaseClassifier):
 
     def fit(self, extraction_data: ExtractionData):
         """
-        Fit the user`s datas into the desired classifiers, printing the results in the console.
+        Fit the user`s datas into the random forest classifier.
 
         :param extraction_data: The user`s dataframes.
         """
@@ -47,5 +45,10 @@ class RandomForestClassifier(BaseClassifier):
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
 
+            score = model.score(x_test, y_test)
+            balanced_score = balanced_accuracy_score(y_test, y_prediction)
+
             print("Classification report for classifier " + user.id + ":")
+            print("Score: " + str(score))
+            print("Balanced Score: " + str(balanced_score))
             print(classification_report(y_test, y_prediction))

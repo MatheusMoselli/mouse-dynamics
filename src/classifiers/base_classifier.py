@@ -1,6 +1,9 @@
 """
 Base classifier for better abstraction and dependency injection
 """
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 from abc import ABC, abstractmethod
 from typing import Optional
@@ -20,7 +23,7 @@ class BaseClassifier(ABC):
         self.is_debug = is_debug
 
     @abstractmethod
-    def fit (self, extraction_data: ExtractionData):
+    def fit(self, extraction_data: ExtractionData):
         """
         Fit the user`s datas into the desired classifiers, printing the results in the console.
 
@@ -28,8 +31,8 @@ class BaseClassifier(ABC):
         """
         pass
 
-    @staticmethod
     def _prepare_user_data(
+            self,
             user: UserDataDto
     ) -> Optional[tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]]:
         """
@@ -60,4 +63,16 @@ class BaseClassifier(ABC):
         x_test = test_df.drop(columns=_DROP_COLS)
         y_test = test_df["authentic"]
 
-        return x_train, y_train, x_test, y_test
+        normalized_x_train, normalized_x_test = self._normalize_data(x_train, x_test)
+
+        return normalized_x_train, y_train, normalized_x_test, y_test
+
+    @staticmethod
+    def _normalize_data(x_train: pd.DataFrame, x_test: pd.DataFrame):
+        scaler = StandardScaler()
+        scaler.fit(x_train)
+
+        x_train_scaled = scaler.transform(x_train)
+        x_test_scaled = scaler.transform(x_test)
+
+        return x_train_scaled, x_test_scaled
