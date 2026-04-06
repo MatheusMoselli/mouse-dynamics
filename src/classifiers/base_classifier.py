@@ -1,7 +1,7 @@
 """
 Base classifier for better abstraction and dependency injection
 """
-import numpy as np
+import optuna
 from sklearn.preprocessing import StandardScaler
 
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
@@ -12,6 +12,8 @@ import pandas as pd
 _DROP_COLS = ["authentic"]
 
 class BaseClassifier(ABC):
+    NUMBER_OF_TRIALS = 30
+
     """
     Abstraction for all classifiers.
     """
@@ -30,6 +32,47 @@ class BaseClassifier(ABC):
         :param extraction_data: The user`s dataframes.
         """
         pass
+
+    @abstractmethod
+    def _objective(self,
+                   trial: optuna.Trial,
+                   x_train: pd.DataFrame,
+                   y_train: pd.Series) -> float:
+        """"""
+        pass
+
+    @abstractmethod
+    def _train_best_model(
+            self,
+            best_params: dict,
+            x_train: pd.DataFrame,
+            y_train: pd.Series,
+    ):
+        """"""
+        pass
+
+    def _get_best_model(self,
+            x_train: pd.DataFrame,
+            y_train: pd.Series):
+        """"""
+        # Cria estudo Optuna — TPE sampler + MedianPruner por padrão
+        study = optuna.create_study(
+            direction="maximize",
+            sampler=optuna.samplers.TPESampler(seed=42),
+            pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
+        )
+
+        study.optimize(
+            lambda trial: self._objective(trial, x_train, y_train),
+            n_trials=self.NUMBER_OF_TRIALS,
+            show_progress_bar=True,
+        )
+
+        best_params = study.best_params
+
+        # Treina modelo final com melhores hiperparâmetros
+        best_model = self._train_best_model(best_params, x_train, y_train)
+        return best_model
 
     def _prepare_user_data(
             self,

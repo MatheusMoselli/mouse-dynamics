@@ -5,12 +5,10 @@ from enum import Enum
 from .base_classifier import BaseClassifier
 from .knn_classifier import KNNClassifier
 from .mlp_classifier import MLPClassifier
-from .optimized_random_forest_classifier import OptimizedRandomForestClassifier
 from .random_forest_classifier import RandomForestClassifier
 
 class EnumClassifiers(Enum):
     RANDOM_FOREST = "random-forest"
-    OPTIMIZED_RANDOM_FOREST = "optimal-random-forest"
     MLP = "mlp"
     KNN = "knn"
 
@@ -24,7 +22,6 @@ def load_classifier(classifier_name: EnumClassifiers, is_debug: bool) -> BaseCla
     """
     classifiers = {
         EnumClassifiers.RANDOM_FOREST: RandomForestClassifier,
-        EnumClassifiers.OPTIMIZED_RANDOM_FOREST: OptimizedRandomForestClassifier,
         EnumClassifiers.MLP: MLPClassifier,
         EnumClassifiers.KNN: KNNClassifier,
     }
