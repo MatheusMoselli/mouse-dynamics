@@ -57,8 +57,7 @@ class MLPClassifier(BaseClassifier):
         n_layers = trial.suggest_int("n_layers", 1, 4)
 
         params = {
-                "n_layers": n_layers,
-                "layer_sizes": tuple(
+                "hidden_layer_sizes": tuple(
                     trial.suggest_int(f"n_units_l{i}", 32, 512, log=True)
                     for i in range(n_layers)
                 ),
