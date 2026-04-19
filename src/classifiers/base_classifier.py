@@ -65,7 +65,7 @@ class BaseClassifier(ABC):
         study.optimize(
             lambda trial: self._objective(trial, x_train, y_train),
             n_trials=self.NUMBER_OF_TRIALS,
-            show_progress_bar=True,
+            show_progress_bar=True
         )
 
         best_params = study.best_params

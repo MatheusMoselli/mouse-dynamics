@@ -27,7 +27,7 @@ class BasePreprocessor:
     """
 
     # Number of trajectory points grouped into one statistical window.
-    WINDOW_SIZE: int = 10
+    WINDOW_SIZE: int = 40
 
     _diff_x_axis_arr: np.ndarray = np.array([])
     _diff_y_axis_arr: np.ndarray = np.array([])

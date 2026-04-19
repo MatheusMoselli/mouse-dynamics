@@ -40,7 +40,18 @@ class RandomForestClassifier(BaseClassifier):
 
             x_train, y_train, x_test, y_test = data
 
-            model = self._get_best_model(x_train, y_train)
+            if self.is_debug:
+                model = SkLearnRandomForestClassifier(
+                    n_estimators=100,       # não use 300+
+                    max_depth=10,           # limita custo
+                    min_samples_split=5,
+                    min_samples_leaf=2,
+                    max_features='sqrt',
+                    n_jobs=1,               # deixa o CV paralelizar
+                    random_state=42
+                )
+            else:
+                model = self._get_best_model(x_train, y_train)
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -66,12 +77,10 @@ class RandomForestClassifier(BaseClassifier):
             "max_features": trial.suggest_float("max_features", 0.2, 1.0),
             "class_weight": trial.suggest_categorical(
                 "class_weight", ["balanced", None]
-            ),
-            "random_state": 42,
-            "n_jobs": -1,
+            )
         }
 
-        model = SkLearnRandomForestClassifier(**params)
+        model = SkLearnRandomForestClassifier(**params, random_state=42)
 
         cv = StratifiedKFold(n_splits=self.NUMBER_OF_TRIALS, shuffle=True, random_state=42)
 
@@ -79,8 +88,8 @@ class RandomForestClassifier(BaseClassifier):
             model, x_train, y_train,
             cv=cv,
             scoring="f1_macro",
-            n_jobs=1,
             error_score=0.0,
+            n_jobs=-2
         )
 
         return float(scores.mean())
@@ -96,7 +105,6 @@ class RandomForestClassifier(BaseClassifier):
         params = {k: v for k, v in best_params.items() if k != "class_weight"}
         params["class_weight"] = best_params.get("class_weight")
         params["random_state"] = 42
-        params["n_jobs"] = -1
 
         model = SkLearnRandomForestClassifier(**params)
         model.fit(x_train, y_train)

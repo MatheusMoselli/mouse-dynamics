@@ -37,7 +37,22 @@ class MLPClassifier(BaseClassifier):
 
             x_train, y_train, x_test, y_test = data
 
-            model = self._get_best_model(x_train, y_train)
+            if self.is_debug:
+                model = SkLearnMLPClassifier(
+                    hidden_layer_sizes=(50,),   # pequeno
+                    activation='relu',
+                    solver='adam',
+                    alpha=1e-4,
+                    batch_size=64,              # menor = mais rápido por época
+                    learning_rate_init=1e-3,
+                    max_iter=150,               # reduza forte
+                    early_stopping=True,        # ESSENCIAL
+                    n_iter_no_change=10,
+                    random_state=42
+                )
+            else:
+                model = self._get_best_model(x_train, y_train)
+
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -82,11 +97,13 @@ class MLPClassifier(BaseClassifier):
         cv = StratifiedKFold(n_splits=self.NUMBER_OF_TRIALS, shuffle=True, random_state=42)
 
         scores = cross_val_score(
-            model, x_train, y_train,
+            model,
+            x_train,
+            y_train,
             cv=cv,
             scoring="f1_macro",
-            n_jobs=1,
             error_score=0.0,
+            n_jobs=-2
         )
 
         return float(scores.mean())

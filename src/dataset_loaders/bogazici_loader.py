@@ -3,6 +3,8 @@ Loader for the Bogazici Mouse Dynamics dataset.
 
 Dataset path: mouse-dynamics(root)/datasets/raw/bogazici/
 """
+from pandas.errors import EmptyDataError
+
 from src.dataset_loaders import BaseDatasetLoader
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 from pathlib import Path
@@ -76,7 +78,11 @@ class BogaziciLoader(BaseDatasetLoader):
         type_of_session: EnumTypeOfSession,
     ) -> None:
         for session_path in sessions_directory.iterdir():
-            session_df = pd.read_csv(session_path)
+            try:
+                session_df = pd.read_csv(session_path)
+            except EmptyDataError:
+                logger.error(f"[ERROR]: {session_path} is empty, skipping.")
+                continue
 
             standardized_df = self._standardize_columns(
                 session_df,

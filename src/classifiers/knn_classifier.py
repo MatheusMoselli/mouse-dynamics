@@ -40,7 +40,15 @@ class KNNClassifier(BaseClassifier):
 
             x_train, y_train, x_test, y_test = data
 
-            model = self._get_best_model(x_train, y_train)
+            if self.is_debug:
+                model = KNeighborsClassifier(
+                    n_neighbors=5,
+                    weights='distance',
+                    algorithm='auto',
+                    n_jobs=1
+                )
+            else:
+                model = self._get_best_model(x_train, y_train)
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -73,7 +81,7 @@ class KNNClassifier(BaseClassifier):
             "leaf_size": trial.suggest_int("leaf_size", 10, 60),
         }
 
-        model = KNeighborsClassifier(**params, n_jobs=-1)
+        model = KNeighborsClassifier(**params)
 
         cv = StratifiedKFold(n_splits=NUMBER_OF_TRIALS, shuffle=True, random_state=42)
 
@@ -83,8 +91,8 @@ class KNNClassifier(BaseClassifier):
             y_train,
             cv=cv,
             scoring="f1_macro",
-            n_jobs=-1,
             error_score=0.0,
+            n_jobs=-2
         )
 
         return float(scores.mean())
@@ -101,6 +109,5 @@ class KNNClassifier(BaseClassifier):
             metric=best_params["metric"],
             p=best_params.get("p", 2),
             algorithm=best_params["algorithm"],
-            leaf_size=best_params["leaf_size"],
-            n_jobs=-1,
+            leaf_size=best_params["leaf_size"]
         )
