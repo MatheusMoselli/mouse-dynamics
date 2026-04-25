@@ -37,7 +37,8 @@ dependencies = [
     "pandas~=2.2.3",
     "scikit-learn~=1.6.1",
     "pyarrow>=14.0.0",
-    "fastparquet>=2024.2.0"
+    "fastparquet>=2024.2.0",
+    "optuna>=3.6.0"
 ]
 
 [project.scripts]

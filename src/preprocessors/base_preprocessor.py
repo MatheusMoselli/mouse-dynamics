@@ -134,6 +134,17 @@ class BasePreprocessor:
         Divide features_df into non-overlapping windows of WINDOW_SIZE rows and
         compute [mean, std, max, min] for every feature column in a single pass.
 
+        Additionally, features whose correct value depends on the window
+        boundary (i.e. they are cumulative/aggregate by nature) are computed
+        here directly from the raw columns:
+
+          - ``curve_length``            : sum of traveled_distance within the window
+          - ``total_angles``            : sum of angle within the window
+          - ``avg_speed_against_distance``    : mean(speed) / curve_length
+          - ``avg_x_acc_against_distance``    : mean(horizontal_acceleration) / curve_length
+          - ``avg_y_acc_against_distance``    : mean(vertical_acceleration) / curve_length
+          - ``acc_beginning_time``      : timestamp[1] − timestamp[0] of the window
+
         :param features_df: Deduplicated per-point feature DataFrame for one session
         :param authentic: Authenticity label (0 or 1) for this session
         :return: Statistics DataFrame with one row per window
@@ -147,17 +158,62 @@ class BasePreprocessor:
         agg_df.columns = [f"{stat}_{col}" for col, stat in agg_df.columns]
         agg_df = agg_df.reset_index(drop=True)
 
+        traveled = features_df["traveled_distance"].to_numpy()
+        speed    = features_df["speed"].to_numpy()
+        h_acc    = features_df["horizontal_acceleration"].to_numpy()
+        v_acc    = features_df["vertical_acceleration"].to_numpy()
+        angle    = features_df["angle"].to_numpy()
         timestamps = features_df["timestamp"].to_numpy()
-        window_starts = np.arange(0, n, self.WINDOW_SIZE)
-        window_ends = np.minimum(window_starts + 1, n - 1)
 
-        acc_beginning_time = np.where(
-            window_starts < window_ends,
-            timestamps[window_ends] - timestamps[window_starts],
-            0.0,
-        )
-        agg_df["acc_beginning_time"] = acc_beginning_time[: len(agg_df)]
-        agg_df["authentic"] = authentic
+        window_starts = np.arange(0, n, self.WINDOW_SIZE)
+        n_windows = len(window_starts)
+
+        curve_length_w        = np.empty(n_windows)
+        total_angles_w        = np.empty(n_windows)
+        avg_spd_dist_w        = np.zeros(n_windows)
+        avg_x_acc_dist_w      = np.zeros(n_windows)
+        avg_y_acc_dist_w      = np.zeros(n_windows)
+        acc_beginning_time_w  = np.zeros(n_windows)
+
+        for i, start in enumerate(window_starts):
+            end = min(start + self.WINDOW_SIZE, n)
+            sl_traveled = traveled[start:end]
+            sl_speed    = speed[start:end]
+            sl_h_acc    = h_acc[start:end]
+            sl_v_acc    = v_acc[start:end]
+            sl_angle    = angle[start:end]
+            sl_ts       = timestamps[start:end]
+
+            # 2.  curve_length  — total path length inside the window
+            curve_len = sl_traveled.sum()
+            curve_length_w[i] = curve_len
+
+            # 24. total_angles  — algebraic sum of direction changes in window
+            total_angles_w[i] = sl_angle.sum()
+
+            # 14. avg_speed_against_distance  — mean speed normalised by path length
+            if curve_len != 0:
+                avg_spd_dist_w[i] = sl_speed.mean() / curve_len
+
+            # 17. avg_x_acc_against_distance
+            if curve_len != 0:
+                avg_x_acc_dist_w[i] = sl_h_acc.mean() / curve_len
+
+            # 18. avg_y_acc_against_distance
+            if curve_len != 0:
+                avg_y_acc_dist_w[i] = sl_v_acc.mean() / curve_len
+
+            # 32. acc_beginning_time  — Δt between first two timestamps of window
+            if len(sl_ts) > 1:
+                acc_beginning_time_w[i] = sl_ts[1] - sl_ts[0]
+
+        agg_df["curve_length"]               = curve_length_w[: len(agg_df)]
+        agg_df["total_angles"]               = total_angles_w[: len(agg_df)]
+        agg_df["avg_speed_against_distance"] = avg_spd_dist_w[: len(agg_df)]
+        agg_df["avg_x_acc_against_distance"] = avg_x_acc_dist_w[: len(agg_df)]
+        agg_df["avg_y_acc_against_distance"] = avg_y_acc_dist_w[: len(agg_df)]
+        agg_df["acc_beginning_time"]         = acc_beginning_time_w[: len(agg_df)]
+        agg_df["authentic"]                  = authentic
 
         return agg_df
 
@@ -202,18 +258,32 @@ class BasePreprocessor:
         self._extracted_features["traveled_distance"] = self._traveled_distance
 
         # 2. Curve length / Real Dist. (Sn)
+        # Kept as an internal array for downstream feature calculations.
+        # It is NOT stored as a per-point feature because it is a global
+        # cumulative sum that would carry cross-window history; the per-window
+        # value (sum of traveled_distance within the window) is computed
+        # directly in _extract_statistics.
         self.curve_length = np.cumsum(self._traveled_distance)
-        self._extracted_features["curve_length"] = self.curve_length
 
         # 3. Elapsed Time / Mouse Digraph
         self._extracted_features["elapsed_time"] = self._diff_time_arr
 
         # 4. Movement Offset
-        self._extracted_features["movement_offset"] = (
-            self.curve_length - self._traveled_distance
+        # Difference between the cumulative path length (curve_length) and the
+        # straight-line displacement from the very first point to the current
+        # point.  This captures how much the cursor "wandered" relative to the
+        # direct route, which is the standard definition used in the literature.
+        direct_displacement = np.sqrt(
+            (x_axis_arr - x_axis_arr[0]) ** 2 + (y_axis_arr - y_axis_arr[0]) ** 2
         )
+        self._extracted_features["movement_offset"] = self.curve_length - direct_displacement
 
         # 5. Deviation Distance
+        # Perpendicular distance from point i to the chord connecting its two
+        # neighbours (i-1, i+1).  The cross-product formula gives a signed
+        # area; dividing by the chord length yields a signed distance whose
+        # sign indicates which side of the chord the point lies on.  Taking
+        # the absolute value converts it to a true (non-negative) distance.
         # TODO: Create a preprocessing version using discrete formulas
         deviation_distance_upper_part = (
             (y_axis_arr[:-2] - y_axis_arr[2:]) * x_axis_arr[1:-1]
@@ -226,7 +296,7 @@ class BasePreprocessor:
         )
         deviation_distance = np.zeros_like(deviation_distance_lower_part)
         np.divide(
-            deviation_distance_upper_part,
+            np.abs(deviation_distance_upper_part),
             deviation_distance_lower_part,
             out=deviation_distance,
             where=deviation_distance_lower_part != 0,
@@ -246,12 +316,26 @@ class BasePreprocessor:
         # self._extracted_features["straightness"] = straightness
 
         # 7. Jitter
-        smoothed_x = np.convolve(
-            x_axis_arr, np.ones(window_size) / window_size, mode="same"
-        )
-        smoothed_y = np.convolve(
-            y_axis_arr, np.ones(window_size) / window_size, mode="same"
-        )
+        # Ratio of raw step length to smoothed step length.  Values > 1 mean
+        # the cursor deviated from the smooth path (tremor / noise); 1 means
+        # perfectly smooth.
+        #
+        # mode="same" zero-pads the signal at both ends, which distorts the
+        # first and last (window_size // 2) values.  Instead we use
+        # mode="valid" on an asymmetrically edge-padded signal so every output
+        # point uses a full, real neighbourhood and the output length is
+        # always exactly n, regardless of whether window_size is even or odd.
+        #   pad_left  = (w - 1) // 2   →  floor half
+        #   pad_right = w // 2          →  ceil  half
+        # This satisfies pad_left + pad_right == window_size - 1, which is
+        # the exact condition for len(valid output) == len(original signal).
+        pad_left  = (window_size - 1) // 2
+        pad_right = window_size // 2
+        x_padded = np.pad(x_axis_arr, (pad_left, pad_right), mode="edge")
+        y_padded = np.pad(y_axis_arr, (pad_left, pad_right), mode="edge")
+        kernel = np.ones(window_size) / window_size
+        smoothed_x = np.convolve(x_padded, kernel, mode="valid")
+        smoothed_y = np.convolve(y_padded, kernel, mode="valid")
         smoothed_path_length = np.sqrt(
             np.concatenate(([0], np.diff(smoothed_x))) ** 2
             + np.concatenate(([0], np.diff(smoothed_y))) ** 2
@@ -332,14 +416,8 @@ class BasePreprocessor:
         self._extracted_features["acceleration"] = self._acceleration
 
         # 14. Average Speed against distance
-        avg_speed_against_distance = np.zeros_like(self.curve_length)
-        np.divide(
-            np.cumsum(self._speed) / np.arange(1, len(self._speed) + 1),
-            self.curve_length,
-            out=avg_speed_against_distance,
-            where=self.curve_length != 0,
-        )
-        self._extracted_features["avg_speed_against_distance"] = avg_speed_against_distance
+        # Computed per window in _extract_statistics to avoid carrying the
+        # global cumsum across window boundaries.
 
         # 15. Horizontal Acceleration vs Resultant
         h_acc_vs_resultant = np.zeros_like(diff_speed_arr)
@@ -362,26 +440,12 @@ class BasePreprocessor:
         self._extracted_features["y_acceleration_vs_resultant"] = v_acc_vs_resultant
 
         # 17. Average X Acceleration against distance
-        avg_x_acc_against_distance = np.zeros_like(self.curve_length)
-        np.divide(
-            np.cumsum(self._horizontal_acceleration)
-            / np.arange(1, len(self._horizontal_acceleration) + 1),
-            self.curve_length,
-            out=avg_x_acc_against_distance,
-            where=self.curve_length != 0,
-        )
-        self._extracted_features["avg_x_acc_against_distance"] = avg_x_acc_against_distance
+        # Computed per window in _extract_statistics to avoid carrying the
+        # global cumsum across window boundaries.
 
         # 18. Average Y Acceleration against distance
-        avg_y_acc_against_distance = np.zeros_like(self.curve_length)
-        np.divide(
-            np.cumsum(self._vertical_acceleration)
-            / np.arange(1, len(self._vertical_acceleration) + 1),
-            self.curve_length,
-            out=avg_y_acc_against_distance,
-            where=self.curve_length != 0,
-        )
-        self._extracted_features["avg_y_acc_against_distance"] = avg_y_acc_against_distance
+        # Computed per window in _extract_statistics to avoid carrying the
+        # global cumsum across window boundaries.
 
     def _calculate_angle_features(self) -> None:
         # 19. Tangential Speed
@@ -416,22 +480,38 @@ class BasePreprocessor:
         # 23. Rate of curvature — TODO
 
         # 24. Total Angles
-        self._extracted_features["total_angles"] = np.cumsum(angle)
+        # The per-point cumsum is a global accumulator that bleeds across
+        # window boundaries.  The angle array (feature 22) is already stored,
+        # so _extract_statistics can sum it locally within each window to
+        # produce the correct per-window total_angles scalar.
 
         # 25–27. Regularity / Center of Mass / Scattering Coefficient — TODO
 
-        # 28. Curvature Velocity
-        curvature_velocity = np.zeros_like(tangential_acceleration)
-        curvature_division = np.power(1 + np.power(tangential_acceleration, 2), 3 / 2)
-
-        np.divide(
-            tangential_jerk,
-            curvature_division,
-            out=curvature_velocity,
-            where=curvature_division != 0
+        # 28. Curvature
+        # Signed curvature of the trajectory at each point using the
+        # Frenet-Serret formula in parametric form:
+        #
+        #   κ = (vx · ay − vy · ax) / (vx² + vy²)^(3/2)
+        #
+        # where vx/vy are the horizontal/vertical speed components and
+        # ax/ay are the horizontal/vertical acceleration components.
+        # The denominator is the cube of the speed magnitude; we guard
+        # against division by zero when the cursor is stationary.
+        curvature_numerator = (
+            self._horizontal_speed * self._vertical_acceleration
+            - self._vertical_speed * self._horizontal_acceleration
         )
-
-        self._extracted_features["curvature_velocity"] = curvature_velocity
+        curvature_denominator = np.power(
+            self._horizontal_speed ** 2 + self._vertical_speed ** 2, 3 / 2
+        )
+        curvature = np.zeros_like(curvature_denominator)
+        np.divide(
+            curvature_numerator,
+            curvature_denominator,
+            out=curvature,
+            where=curvature_denominator != 0,
+        )
+        self._extracted_features["curvature"] = curvature
 
         # 29–31. Central Moments / Self-Intersection / Angle (cosines) — TODO
         # 32. Acceleration Beginning time — calculated in _extract_statistics
