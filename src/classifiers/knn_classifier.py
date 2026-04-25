@@ -36,6 +36,7 @@ class KNNClassifier(BaseClassifier):
 
             if data is None:
                 logger.info(f"User {user.id} skipped (invalid or empty data).")
+                self._experiment_logger.increase_skipped_users_amount_log()
                 continue
 
             x_train, y_train, x_test, y_test = data
@@ -56,10 +57,20 @@ class KNNClassifier(BaseClassifier):
             score = model.score(x_test, y_test)
             balanced_score = balanced_accuracy_score(y_test, y_prediction)
 
-            print("Classification report for classifier " + user.id + ":")
-            print("Score: " + str(score))
-            print("Balanced Score: " + str(balanced_score))
-            print(classification_report(y_test, y_prediction))
+            if self.is_debug:
+                print("Classification report for classifier " + user.id + ":")
+                print("Score: " + str(score))
+                print("Balanced Score: " + str(balanced_score))
+                print(classification_report(y_test, y_prediction))
+
+            self._log_user_result(
+                user_id=user.id,
+                y_test=y_test,
+                y_pred=y_prediction,
+                score=score,
+                balanced_score=balanced_score,
+                best_params=model.get_params(),
+            )
 
     def _objective(self,
                    trial: optuna.Trial,

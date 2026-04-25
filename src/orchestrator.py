@@ -12,6 +12,8 @@ import shutil
 import sys
 import os
 
+from src.utils.experiment_logger import ExperimentLogger
+
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(
     logging.Formatter(
@@ -38,10 +40,10 @@ class Orchestrator:
                  classifier: EnumClassifiers,
                  is_debug = False):
         self.extraction_data: ExtractionData | None = None
-        self.dataset_loader = load_dataset(dataset, is_debug)
-        self.preprocessor = load_preprocessor(preprocessor, is_debug)
-        self.splitter = load_splitter(splitter, is_debug)
-        self.classifier = load_classifier(classifier, is_debug)
+        self._dataset_enum = dataset
+        self._preprocessor_enum = preprocessor
+        self._splitter_enum = splitter
+        self._classifier_enum = classifier
         self._is_debug = is_debug
 
     @staticmethod
@@ -58,7 +60,8 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Loading dataset.")
-        self.extraction_data = self.dataset_loader.load()
+        dataset_loader = load_dataset(self._dataset_enum, self._is_debug)
+        self.extraction_data = dataset_loader.load()
         return self
 
     def _preprocess(self):
@@ -67,7 +70,8 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Preprocessing.")
-        self.extraction_data = self.preprocessor.preprocess(self.extraction_data)
+        preprocessor = load_preprocessor(self._preprocessor_enum, self._is_debug)
+        self.extraction_data = preprocessor.preprocess(self.extraction_data)
         return self
 
     def _split(self):
@@ -76,16 +80,19 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Splitting.")
-        self.extraction_data = self.splitter.split(self.extraction_data)
+        splitter = load_splitter(self._splitter_enum, self._is_debug)
+        self.extraction_data = splitter.split(self.extraction_data)
         return self
 
-    def _fit(self):
+    def _fit(self, experiment_logger: ExperimentLogger):
         """
         Call the classifier method for training the classifier and testing it.
         :return: self
         """
         logger.info(f"Fitting.")
-        self.classifier.fit(self.extraction_data)
+        classifier = load_classifier(self._classifier_enum, self._is_debug)
+        classifier.set_experiment_logger(experiment_logger)
+        classifier.fit(self.extraction_data)
         return self
 
     def _clean_previous_debug_files(self):
@@ -109,7 +116,14 @@ class Orchestrator:
         if self._is_debug:
             self._clean_previous_debug_files()
 
-        self._load_dataset() \
-            ._preprocess() \
-            ._split() \
-            ._fit()
+        with ExperimentLogger(  # ← abre o logger aqui
+                classifier_name=self._classifier_enum.value,
+                dataset_name=self._dataset_enum.value,
+                preprocessor_name=self._preprocessor_enum.value,
+                splitter_name=self._splitter_enum.value,
+                is_debug=self._is_debug
+        ) as experiment_logger:
+            self._load_dataset() \
+                ._preprocess() \
+                ._split() \
+                ._fit(experiment_logger)

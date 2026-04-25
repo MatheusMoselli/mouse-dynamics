@@ -2,27 +2,65 @@
 Base classifier for better abstraction and dependency injection
 """
 import optuna
-from sklearn.preprocessing import StandardScaler
-
-from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
-from abc import ABC, abstractmethod
-from typing import Optional
 import pandas as pd
+from pandas import Series
+from typing import Optional
+from abc import ABC, abstractmethod
+from sklearn.preprocessing import StandardScaler
+from src.utils.experiment_logger import ExperimentLogger
+from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 
 _DROP_COLS = ["authentic"]
 
 class BaseClassifier(ABC):
-    NUMBER_OF_TRIALS = 30
-
     """
     Abstraction for all classifiers.
     """
+
+    NUMBER_OF_TRIALS = 30
+    _experiment_logger: ExperimentLogger = None
+
     def __init__(self, is_debug: bool = False):
         """
         Class initialization.
         :param is_debug: Is the classifier being run in debug mode.
         """
         self.is_debug = is_debug
+
+    def set_experiment_logger(self, experiment_logger: ExperimentLogger):
+        """
+        Set the experiment logger for the classifier (as read-only).
+        :param experiment_logger: Experiment logger.
+        """
+        self._experiment_logger = experiment_logger
+
+    def _log_user_result(
+        self,
+        user_id: str,
+        y_test: Series,
+        y_pred: Series,
+        score: float,
+        balanced_score: float,
+        best_params: dict | None = None,
+    ) -> None:
+        """
+        Add a user result to the experiment logger.
+        """
+        if self._experiment_logger is not None:
+            self._experiment_logger.log_user_result(
+                user_id=user_id,
+                y_test=y_test,
+                y_pred=y_pred,
+                score=score,
+                balanced_score=balanced_score,
+                best_params=best_params,
+            )
+
+    def _log_skipped_user(self) -> None:
+        """Increase the amount of users skipped."""
+        if self._experiment_logger is not None:
+            self._experiment_logger.increase_skipped_users_amount_log()
+
 
     @abstractmethod
     def fit(self, extraction_data: ExtractionData):

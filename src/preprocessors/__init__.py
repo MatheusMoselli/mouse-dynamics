@@ -7,8 +7,8 @@ from .minecraft_preprocessor import  MinecraftPreprocessor
 from .khan_preprocessor import KhanPreprocessor
 
 class EnumPreprocessors(Enum):
-    MINECRAFT = "minecraft",
-    KHAN = "khan",
+    MINECRAFT = "minecraft"
+    KHAN = "khan"
 
 def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool) -> BasePreprocessor:
     """
