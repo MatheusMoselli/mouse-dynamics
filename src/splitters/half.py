@@ -5,7 +5,6 @@ by taking the same amount of data from each of the other users.
 import logging
 from src.dto import ExtractionData, EnumTypeOfSession
 from src.splitters import BaseSplitter
-from pathlib import Path
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -17,6 +16,11 @@ class HalfSplitter(BaseSplitter):
     """
 
     def split(self, extraction_data: ExtractionData) -> ExtractionData:
+        """
+        Split the dataset into train/test sets.
+        :param extraction_data:  the list of datasets to be split
+        :return: The list of train/test sets
+        """
         for user in extraction_data.users:
             true_user_df = user.merged_sessions(EnumTypeOfSession.TRAINING).copy()
 

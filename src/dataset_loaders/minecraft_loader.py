@@ -12,9 +12,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# TODO: add support to test files
-
-
 class MinecraftLoader(BaseDatasetLoader):
     """Loader for the Minecraft Mouse Dynamics dataset."""
 
@@ -50,6 +47,11 @@ class MinecraftLoader(BaseDatasetLoader):
         return self._extraction_data
 
     def _load_users(self, base_path: Path, type_of_session: EnumTypeOfSession) -> None:
+        """
+        load all users into sessions
+        :param base_path: the base path of the dataset
+        :param type_of_session: type of session to load
+        """
         logger.info(f"Loading {base_path}")
         df = pd.read_csv(base_path)
 

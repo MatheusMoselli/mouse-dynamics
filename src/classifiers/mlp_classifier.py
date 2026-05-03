@@ -40,20 +40,25 @@ class MLPClassifier(BaseClassifier):
 
             if self.is_debug:
                 model = SkLearnMLPClassifier(
-                    hidden_layer_sizes=(50,),   # pequeno
+                    hidden_layer_sizes=(50,),
                     activation='relu',
                     solver='adam',
                     alpha=1e-4,
-                    batch_size=64,              # menor = mais rápido por época
+                    batch_size=64,
                     learning_rate_init=1e-3,
-                    max_iter=150,               # reduza forte
-                    early_stopping=True,        # ESSENCIAL
+                    max_iter=150,
+                    early_stopping=True,
                     n_iter_no_change=10,
                     random_state=42
                 )
             else:
-                model = self._get_best_model(x_train, y_train)
+                study_name = f"mlp_user_{user.id}"
 
+                model = self._get_best_model(
+                    x_train,
+                    y_train,
+                    study_name
+                )
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -80,32 +85,61 @@ class MLPClassifier(BaseClassifier):
                    trial: optuna.Trial,
                    x_train: pd.DataFrame,
                    y_train: pd.Series) -> float:
-        n_layers = trial.suggest_int("n_layers", 1, 4)
+        """
+        Defines the function to run in the trials
+        :param trial: current trial
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the mean of scores in the trial
+        """
+        n_layers = trial.suggest_int("n_layers", 1, 2)
 
         params = {
-                "hidden_layer_sizes": tuple(
-                    trial.suggest_int(f"n_units_l{i}", 32, 512, log=True)
-                    for i in range(n_layers)
-                ),
-                "activation": trial.suggest_categorical("activation", ["relu", "tanh", "logistic"]),
-                "solver": trial.suggest_categorical("solver", ["adam", "sgd"]),
-                "alpha": trial.suggest_float("alpha", 1e-5, 1e-1, log=True),
-                "learning_rate": trial.suggest_categorical("learning_rate", ["constant", "invscaling", "adaptive"]),
-                "learning_rate_init": trial.suggest_float("learning_rate_init", 1e-4, 1e-1, log=True),
-                "batch_size": trial.suggest_categorical("batch_size", [32, 64, 128, 256, "auto"]),
-                "momentum": trial.suggest_float("momentum", 0.7, 0.99),
+            "hidden_layer_sizes": tuple(
+                trial.suggest_int(f"n_units_l{i}", 32, 128, log=True)
+                for i in range(n_layers)
+            ),
+
+            "activation": trial.suggest_categorical(
+                "activation", ["relu", "tanh"]
+            ),
+
+            "solver": trial.suggest_categorical(
+                "solver", ["adam", "sgd"]
+            ),
+
+            "alpha": trial.suggest_float(
+                "alpha", 1e-5, 1e-1, log=True
+            ),
+
+            "learning_rate_init": trial.suggest_float(
+                "learning_rate_init", 1e-4, 1e-2, log=True
+            ),
+
+            "batch_size": trial.suggest_categorical(
+                "batch_size", [32, 64, 128, 256]
+            ),
         }
+        
+        if params["solver"] == "sgd":
+            params["learning_rate"] = trial.suggest_categorical(
+                "learning_rate", ["constant", "invscaling", "adaptive"]
+            )
+
+            params["momentum"] = trial.suggest_float(
+                "momentum", 0.7, 0.99
+            )
 
         model = SkLearnMLPClassifier(
             **params,
             max_iter=1000,
             early_stopping=True,
             validation_fraction=0.1,
-            n_iter_no_change=20,
+            n_iter_no_change=10,
             random_state=42
         )
 
-        cv = StratifiedKFold(n_splits=self.NUMBER_OF_TRIALS, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
         scores = cross_val_score(
             model,
@@ -114,7 +148,7 @@ class MLPClassifier(BaseClassifier):
             cv=cv,
             scoring="f1_macro",
             error_score=0.0,
-            n_jobs=-2
+            n_jobs=1
         )
 
         return float(scores.mean())
@@ -125,7 +159,13 @@ class MLPClassifier(BaseClassifier):
             x_train: pd.DataFrame,
             y_train: pd.Series,
     ) -> SkLearnMLPClassifier:
-        """Train the final model."""
+        """
+        Train the final model.
+        :param best_params: the params to use in the model
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the best model
+        """
         return SkLearnMLPClassifier(
             hidden_layer_sizes=tuple(best_params[f"n_units_l{i}"] for i in range(best_params["n_layers"])),
             activation=best_params["activation"],

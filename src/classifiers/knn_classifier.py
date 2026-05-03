@@ -14,9 +14,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-NUMBER_OF_TRIALS = 3
-CROSS_VALIDATION_FOLDS = 3
-
 class KNNClassifier(BaseClassifier):
     """
     Custom KNN classifier following the project pattern
@@ -49,7 +46,13 @@ class KNNClassifier(BaseClassifier):
                     n_jobs=1
                 )
             else:
-                model = self._get_best_model(x_train, y_train)
+                study_name = f"knn_user_{user.id}"
+
+                model = self._get_best_model(
+                    x_train,
+                    y_train,
+                    study_name
+                )
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -77,24 +80,40 @@ class KNNClassifier(BaseClassifier):
                    x_train: np.ndarray,
                    y_train: np.ndarray) -> float:
         """
-        Espaço de busca para KNN.
-
-        Notas:
-        - 'algorithm' depende de 'metric': ball_tree/kd_tree não suportam minkowski com 'p' fracionário
-        - weights='distance' tende a ajudar em dados biométricos com classes desbalanceadas
+        Defines the function to run in the trials
+        :param trial: current trial
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the mean of scores in the trial
         """
         params = {
             "n_neighbors": trial.suggest_int("n_neighbors", 3, 50),
-            "weights": trial.suggest_categorical("weights", ["uniform", "distance"]),
-            "metric": trial.suggest_categorical("metric", ["euclidean", "manhattan", "chebyshev", "minkowski"]),
-            "p": trial.suggest_int("p", 1, 4),
-            "algorithm": trial.suggest_categorical("algorithm", ["ball_tree", "kd_tree", "brute"]),
-            "leaf_size": trial.suggest_int("leaf_size", 10, 60),
+
+            "weights": trial.suggest_categorical(
+                "weights", ["uniform", "distance"]
+            ),
+
+            "algorithm": trial.suggest_categorical(
+                "algorithm", ["auto", "brute"]
+            ),
         }
 
-        model = KNeighborsClassifier(**params)
+        metric = trial.suggest_categorical(
+            "metric",
+            ["euclidean", "manhattan", "chebyshev", "minkowski"]
+        )
 
-        cv = StratifiedKFold(n_splits=NUMBER_OF_TRIALS, shuffle=True, random_state=42)
+        params["metric"] = metric
+
+        if metric == "minkowski":
+            params["p"] = trial.suggest_int("p", 1, 4)
+
+        model = KNeighborsClassifier(
+            **params,
+            n_jobs=1
+        )
+
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
         scores = cross_val_score(
             model,
@@ -103,7 +122,7 @@ class KNNClassifier(BaseClassifier):
             cv=cv,
             scoring="f1_macro",
             error_score=0.0,
-            n_jobs=-2
+            n_jobs=1
         )
 
         return float(scores.mean())
@@ -114,6 +133,13 @@ class KNNClassifier(BaseClassifier):
             x_train: pd.DataFrame,
             y_train: pd.Series,
     ):
+        """
+        Train the final model.
+        :param best_params: the params to use in the model
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the best model
+        """
         return KNeighborsClassifier(
             n_neighbors=best_params["n_neighbors"],
             weights=best_params["weights"],

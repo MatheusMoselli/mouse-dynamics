@@ -3,7 +3,6 @@ Generic splitter for splitting the data into test/training groups.
 """
 from abc import abstractmethod
 from pathlib import Path
-import pandas as pd
 from src.dto import ExtractionData, UserDataDto
 from src.utils.log_file import log_dataframe_sessions
 
@@ -32,6 +31,10 @@ class BaseSplitter:
 
     @staticmethod
     def _write_debug_file(user: UserDataDto) -> None:
+        """
+        Write the debug file.
+        :param user: The user to write the debug file.
+        """
         directory_path = Path(f"../datasets/split/user{user.id}")
         directory_path.mkdir(parents=True, exist_ok=True)
 

@@ -53,6 +53,11 @@ class BalabitLoader(BaseDatasetLoader):
         return self._extraction_data
 
     def _load_users(self, base_path: Path, type_of_session: EnumTypeOfSession) -> None:
+        """
+        load all users into sessions
+        :param base_path: the base path of the dataset
+        :param type_of_session: type of session to load
+        """
         for directory in base_path.iterdir():
             if not directory.is_dir():
                 continue
@@ -67,6 +72,12 @@ class BalabitLoader(BaseDatasetLoader):
         user_data: UserDataDto,
         type_of_session: EnumTypeOfSession,
     ) -> None:
+        """
+        Load all sessions of the user
+        :param sessions_directory: the base path of the user
+        :param user_data: the user to load into
+        :param type_of_session: type of session to load
+        """
         for session_path in sessions_directory.iterdir():
             session_df = pd.read_csv(session_path)
 

@@ -48,6 +48,10 @@ class Orchestrator:
 
     @staticmethod
     def __rebuild_directory(directory_path: str):
+        """
+        Recreate a directory, cleaning everything inside it
+        :param directory_path: the directory to clean
+        """
         try:
             shutil.rmtree(directory_path)
             os.makedirs(directory_path)
@@ -96,6 +100,9 @@ class Orchestrator:
         return self
 
     def _clean_previous_debug_files(self):
+        """
+        Clean all previous debug files.
+        """
         if not self._is_debug:
             logger.info("Skipping cleaning old debug files.")
             return
@@ -113,10 +120,13 @@ class Orchestrator:
         self.__rebuild_directory("../datasets/split")
 
     def run(self):
+        """
+        Run the orchestrator.
+        """
         if self._is_debug:
             self._clean_previous_debug_files()
 
-        with ExperimentLogger(  # ← abre o logger aqui
+        with ExperimentLogger(
                 classifier_name=self._classifier_enum.value,
                 dataset_name=self._dataset_enum.value,
                 preprocessor_name=self._preprocessor_enum.value,

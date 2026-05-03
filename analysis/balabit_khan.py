@@ -10,7 +10,7 @@ if __name__ == "__main__":
         splitter=EnumSplitters.HALF,
         classifier=EnumClassifiers.RANDOM_FOREST,
         preprocessor=EnumPreprocessors.KHAN,
-        is_debug=True
+        is_debug=False
     )
 
     orchestrator.run()

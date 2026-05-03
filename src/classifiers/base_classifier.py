@@ -6,6 +6,8 @@ import pandas as pd
 from pandas import Series
 from typing import Optional
 from abc import ABC, abstractmethod
+
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from src.utils.experiment_logger import ExperimentLogger
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
@@ -17,7 +19,7 @@ class BaseClassifier(ABC):
     Abstraction for all classifiers.
     """
 
-    NUMBER_OF_TRIALS = 30
+    NUMBER_OF_TRIALS = 15
     _experiment_logger: ExperimentLogger = None
 
     def __init__(self, is_debug: bool = False):
@@ -76,7 +78,13 @@ class BaseClassifier(ABC):
                    trial: optuna.Trial,
                    x_train: pd.DataFrame,
                    y_train: pd.Series) -> float:
-        """"""
+        """
+        Defines the function to run in the trials
+        :param trial: current trial
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the mean of scores in the trial
+        """
         pass
 
     @abstractmethod
@@ -86,30 +94,50 @@ class BaseClassifier(ABC):
             x_train: pd.DataFrame,
             y_train: pd.Series,
     ):
-        """"""
+        """
+        Train the final model.
+        :param best_params: the params to use in the model
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the best model
+        """
         pass
 
     def _get_best_model(self,
             x_train: pd.DataFrame,
-            y_train: pd.Series):
-        """"""
-        # Cria estudo Optuna — TPE sampler + MedianPruner por padrão
+            y_train: pd.Series,
+            study_name: str):
+        """
+        Creates the optuna studies and get the best model
+
+        :param x_train: training data
+        :param y_train: training labels
+        :param study_name: name of the study
+        :return: the best model
+        """
+        x_sample, _, y_sample, _ = train_test_split(
+            x_train, y_train, train_size=0.3, stratify=y_train
+        )
+
         study = optuna.create_study(
             direction="maximize",
             sampler=optuna.samplers.TPESampler(seed=42),
             pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
+            study_name=f"{study_name}.db",
+            storage=f"sqlite:///optuna/{study_name}.db",
+            load_if_exists=True
         )
 
         study.optimize(
-            lambda trial: self._objective(trial, x_train, y_train),
+            lambda trial: self._objective(trial, x_sample, y_sample),
             n_trials=self.NUMBER_OF_TRIALS,
-            show_progress_bar=True
+            show_progress_bar=True,
+            n_jobs=3
         )
 
         best_params = study.best_params
 
-        # Treina modelo final com melhores hiperparâmetros
-        best_model = self._train_best_model(best_params, x_train, y_train)
+        best_model = self._train_best_model(best_params, x_sample, y_sample)
         return best_model
 
     def _prepare_user_data(
@@ -118,13 +146,6 @@ class BaseClassifier(ABC):
     ) -> Optional[tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]]:
         """
         Validate, merge, and split one user's sessions into model-ready arrays.
-
-        Returns None (and logs the reason) when the user should be skipped.
-        Otherwise, returns (x_train, y_train, x_test, y_test).
-
-        Concrete classifiers call this at the top of their per-user loop so
-        that validation and feature/label splitting are not duplicated across
-        every classifier implementation.
 
         :param user: UserDataDto after preprocessing and splitting
         :return: (x_train, y_train, x_test, y_test) or None
@@ -150,6 +171,12 @@ class BaseClassifier(ABC):
 
     @staticmethod
     def _normalize_data(x_train: pd.DataFrame, x_test: pd.DataFrame):
+        """
+        Normalize the data before training.
+        :param x_train: training data
+        :param x_test: testing data
+        :return: the normalized data
+        """
         scaler = StandardScaler()
         scaler.fit(x_train)
 

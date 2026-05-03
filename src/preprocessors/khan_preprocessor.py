@@ -12,4 +12,4 @@ class KhanPreprocessor(BasePreprocessor):
     matches the granularity used in the reference article.
     """
 
-    WINDOW_SIZE: int = 10
+    WINDOW_SIZE: int = 40

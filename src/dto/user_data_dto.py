@@ -17,22 +17,42 @@ class UserDataDto:
 
     @property
     def id(self) -> str:
+        """
+        get the user's id
+        :return: user's id
+        """
         return self._id
 
     @property
     def training_sessions(self) -> dict[str, pd.DataFrame]:
+        """
+        get the user's training sessions
+        :return: user's training sessions
+        """
         return self._training_sessions
 
     @property
     def testing_sessions(self) -> dict[str, pd.DataFrame]:
+        """
+        get the user's testing sessions
+        :return: user's testing sessions
+        """
         return self._testing_sessions
 
     @training_sessions.setter
     def training_sessions(self, value: dict[str, pd.DataFrame]) -> None:
+        """
+        set the user's training sessions
+        :param value: new training sessions
+        """
         self._training_sessions = value
 
     @testing_sessions.setter
     def testing_sessions(self, value: dict[str, pd.DataFrame]) -> None:
+        """
+        set the user's testing sessions
+        :param value: new testing sessions
+        """
         self._testing_sessions = value
 
     def append_session(
@@ -66,12 +86,23 @@ class UserDataDto:
     def get_session_by_name(
         self, session_name: str, type_of_session: EnumTypeOfSession
     ) -> pd.DataFrame | None:
+        """
+        Get a session by name and type
+        :param session_name: unique identifier for this session
+        :param type_of_session: type of the session
+        :return: session if exists, else None
+        """
         sessions = self.get_sessions_by_type(type_of_session)
         return sessions.get(session_name)
 
     def get_sessions_by_type(
         self, session_type: EnumTypeOfSession
     ) -> dict[str, pd.DataFrame]:
+        """
+        Get all the sessions by type
+        :param session_type: type of the session
+        :return: list of sessions
+        """
         return (
             self._training_sessions
             if session_type == EnumTypeOfSession.TRAINING
@@ -94,6 +125,10 @@ class UserDataDto:
         return pd.concat(sessions.values(), ignore_index=True)
 
     def is_user_valid(self) -> bool:
+        """
+        Validate the user's data
+        :return: True if the user is valid, False otherwise
+        """
         return (
             self._id is not None
             and len(self._training_sessions) > 0

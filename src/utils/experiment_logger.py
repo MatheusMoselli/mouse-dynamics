@@ -1,6 +1,5 @@
 """
 Experiment logger for mouse dynamics ML pipeline.
-
 Saves one JSON record per run.
 """
 import json
@@ -42,9 +41,11 @@ class ExperimentLogger:
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
     def __enter__(self) -> "ExperimentLogger":
+        """Beginning of the 'with' statement"""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """End of the 'with' statement"""
         self._finish()
         return False
 
@@ -100,6 +101,10 @@ class ExperimentLogger:
         )
 
     def _persist(self) -> None:
+        """
+        Persist the file in the output directory
+        :return:
+        """
         filename = f"{self._record.run_id}.json"
         json_path = self._output_dir / filename
 

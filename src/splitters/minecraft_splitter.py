@@ -16,6 +16,11 @@ class MinecraftSplitter(BaseSplitter):
     """
 
     def split(self, extraction_data: ExtractionData) -> ExtractionData:
+        """
+        Split the dataset into train/test sets.
+        :param extraction_data:  the list of datasets to be split
+        :return: The list of train/test sets
+        """
         main_users_features = [user for user in extraction_data.users if int(user.id) < 15]
         support_users_features = [user for user in extraction_data.users if int(user.id) >= 15]
 
@@ -41,6 +46,12 @@ class MinecraftSplitter(BaseSplitter):
     def _split_by_session_type(type_of_session: EnumTypeOfSession,
                                main_users: list[UserDataDto],
                                support_users: list[UserDataDto]):
+        """
+        Split the dataset into train/test sets, using other users data as impostor.
+        :param type_of_session: type of session to use
+        :param main_users: users to create the train/test sets
+        :param support_users: users to fill the impostor data in the main_users list
+        """
         for main_user in main_users:
             true_user_df = main_user.merged_sessions(type_of_session).copy()
 

@@ -4,7 +4,6 @@ Loader for the Bogazici Mouse Dynamics dataset.
 Dataset path: mouse-dynamics(root)/datasets/raw/bogazici/
 """
 from pandas.errors import EmptyDataError
-
 from src.dataset_loaders import BaseDatasetLoader
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 from pathlib import Path
@@ -62,6 +61,11 @@ class BogaziciLoader(BaseDatasetLoader):
         return self._extraction_data
 
     def _load_users(self, base_path: Path) -> None:
+        """
+        load all users into sessions
+        :param base_path: the base path of the dataset
+        :param type_of_session: type of session to load
+        """
         for directory in base_path.iterdir():
             if not directory.is_dir():
                 continue
@@ -77,6 +81,12 @@ class BogaziciLoader(BaseDatasetLoader):
         user_data: UserDataDto,
         type_of_session: EnumTypeOfSession,
     ) -> None:
+        """
+        Load all sessions of the user
+        :param sessions_directory: the base path of the user
+        :param user_data: the user to load into
+        :param type_of_session: type of session to load
+        """
         for session_path in sessions_directory.iterdir():
             try:
                 session_df = pd.read_csv(session_path)

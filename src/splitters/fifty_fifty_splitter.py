@@ -13,7 +13,13 @@ class FiftyFiftySplitter(BaseSplitter):
     The features should already be extracted at this point
     """
 
+    #todo: fix this into the new way (using usuarioDto)
     def split(self, dataframes_by_users: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+        """
+        Split the dataset into train/test sets.
+        :param dataframes_by_users: dataframes to split.
+        :return:
+        """
         split_dfs_by_users = {}
 
         for main_user_id, main_user_df in dataframes_by_users.items():

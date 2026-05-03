@@ -95,7 +95,7 @@ class BasePreprocessor:
     def _process_single_session(self, session_df: pd.DataFrame) -> pd.DataFrame:
         """
         Full pipeline for a single session DataFrame:
-          1. Extract per-point kinematic features (velocity, acceleration, angles…)
+          1. Extract per-point kinematic features
           2. Deduplicate consecutive identical (x, y) points
           3. Slice into non-overlapping windows of WINDOW_SIZE
           4. Compute [mean, std, max, min] per window in one vectorised pass
@@ -131,20 +131,10 @@ class BasePreprocessor:
         self, features_df: pd.DataFrame, authentic: int
     ) -> pd.DataFrame:
         """
-        Divide features_df into non-overlapping windows of WINDOW_SIZE rows and
-        compute [mean, std, max, min] for every feature column in a single pass.
-
-        Additionally, features whose correct value depends on the window
-        boundary (i.e. they are cumulative/aggregate by nature) are computed
-        here directly from the raw columns:
-
-          - ``curve_length``            : sum of traveled_distance within the window
-          - ``total_angles``            : sum of angle within the window
-          - ``avg_speed_against_distance``    : mean(speed) / curve_length
-          - ``avg_x_acc_against_distance``    : mean(horizontal_acceleration) / curve_length
-          - ``avg_y_acc_against_distance``    : mean(vertical_acceleration) / curve_length
-          - ``acc_beginning_time``      : timestamp[1] − timestamp[0] of the window
-
+        Full pipeline of statistics extraction:
+          1. Divide features_df into non-overlapping windows of WINDOW_SIZE rows
+          2. Compute [mean, std, max, min] for every feature column in a single pass
+          3. Compute features that are dependent on WINDOW_SIZE
         :param features_df: Deduplicated per-point feature DataFrame for one session
         :param authentic: Authenticity label (0 or 1) for this session
         :return: Statistics DataFrame with one row per window
@@ -207,18 +197,22 @@ class BasePreprocessor:
             if len(sl_ts) > 1:
                 acc_beginning_time_w[i] = sl_ts[1] - sl_ts[0]
 
-        agg_df["curve_length"]               = curve_length_w[: len(agg_df)]
-        agg_df["total_angles"]               = total_angles_w[: len(agg_df)]
+        agg_df["curve_length"] = curve_length_w[: len(agg_df)]
+        agg_df["total_angles"] = total_angles_w[: len(agg_df)]
         agg_df["avg_speed_against_distance"] = avg_spd_dist_w[: len(agg_df)]
         agg_df["avg_x_acc_against_distance"] = avg_x_acc_dist_w[: len(agg_df)]
         agg_df["avg_y_acc_against_distance"] = avg_y_acc_dist_w[: len(agg_df)]
-        agg_df["acc_beginning_time"]         = acc_beginning_time_w[: len(agg_df)]
-        agg_df["authentic"]                  = authentic
+        agg_df["acc_beginning_time"] = acc_beginning_time_w[: len(agg_df)]
+        agg_df["authentic"] = authentic
 
         return agg_df
 
     @property
     def features_dataframe(self) -> pd.DataFrame:
+        """
+        Get the internal features dataframe
+        :return: __features_dataframe
+        """
         if self.__features_dataframe is None:
             self.__features_dataframe = pd.DataFrame(self._extracted_features)
         return self.__features_dataframe

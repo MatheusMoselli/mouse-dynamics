@@ -43,16 +43,22 @@ class RandomForestClassifier(BaseClassifier):
 
             if self.is_debug:
                 model = SkLearnRandomForestClassifier(
-                    n_estimators=100,       # não use 300+
-                    max_depth=10,           # limita custo
+                    n_estimators=100,
+                    max_depth=10,
                     min_samples_split=5,
                     min_samples_leaf=2,
                     max_features='sqrt',
-                    n_jobs=1,               # deixa o CV paralelizar
+                    n_jobs=1,
                     random_state=42
                 )
             else:
-                model = self._get_best_model(x_train, y_train)
+                study_name = f"rf_user_{user.id}"
+
+                model = self._get_best_model(
+                    x_train,
+                    y_train,
+                    study_name
+                )
 
             model.fit(x_train, y_train)
             y_prediction = model.predict(x_test)
@@ -80,27 +86,58 @@ class RandomForestClassifier(BaseClassifier):
                    trial: optuna.Trial,
                    x_train: pd.DataFrame,
                    y_train: pd.Series) -> float:
+        """
+        Defines the function to run in the trials
+        :param trial: current trial
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the mean of scores in the trial
+        """
         params = {
-            "n_estimators": trial.suggest_int("n_estimators", 50, 500, step=50),
-            "max_depth": trial.suggest_int("max_depth", 3, 20),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 800, step=100),
+
+            "max_depth": trial.suggest_categorical(
+                "max_depth", [None, 5, 10, 15, 20, 30]
+            ),
+
             "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
-            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
-            "max_features": trial.suggest_float("max_features", 0.2, 1.0),
+
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 20),
+
+            "max_features": trial.suggest_categorical(
+                "max_features", ["sqrt", "log2", None, 0.5, 0.8]
+            ),
+
+            "criterion": trial.suggest_categorical(
+                "criterion", ["gini", "entropy", "log_loss"]
+            ),
+
+            "bootstrap": trial.suggest_categorical(
+                "bootstrap", [True, False]
+            ),
+
             "class_weight": trial.suggest_categorical(
-                "class_weight", ["balanced", None]
-            )
+                "class_weight", ["balanced", "balanced_subsample", None]
+            ),
         }
+        
+        if params["bootstrap"]:
+            params["max_samples"] = trial.suggest_float("max_samples", 0.5, 1.0)
 
-        model = SkLearnRandomForestClassifier(**params, random_state=42)
+        model = SkLearnRandomForestClassifier(
+            **params,
+            n_jobs=1,
+            random_state=42
+        )
 
-        cv = StratifiedKFold(n_splits=self.NUMBER_OF_TRIALS, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
         scores = cross_val_score(
             model, x_train, y_train,
             cv=cv,
             scoring="f1_macro",
             error_score=0.0,
-            n_jobs=-2
+            n_jobs=1
         )
 
         return float(scores.mean())
@@ -111,7 +148,13 @@ class RandomForestClassifier(BaseClassifier):
             x_train: pd.DataFrame,
             y_train: pd.Series,
     ) -> SkLearnRandomForestClassifier:
-        """Train the final model."""
+        """
+        Train the final model.
+        :param best_params: the params to use in the model
+        :param x_train: training data
+        :param y_train: training labels
+        :return: the best model
+        """
         # Remove chaves internas do Optuna que não vão para o sklearn
         params = {k: v for k, v in best_params.items() if k != "class_weight"}
         params["class_weight"] = best_params.get("class_weight")
