@@ -123,8 +123,8 @@ class BaseClassifier(ABC):
             direction="maximize",
             sampler=optuna.samplers.TPESampler(seed=42),
             pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
-            study_name=f"{study_name}.db",
-            storage=f"sqlite:///optuna/{study_name}.db",
+            study_name=f"{study_name}__{self._experiment_logger._record.run_id}.db",
+            storage=f"sqlite:///optuna/{study_name}__{self._experiment_logger._record.run_id}.db",
             load_if_exists=True
         )
 
