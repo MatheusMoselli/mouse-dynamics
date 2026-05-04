@@ -25,10 +25,6 @@ class BasePreprocessor:
     Provides a complete, concrete preprocessing pipeline that subclasses inherit
     without any overriding required.
     """
-
-    # Number of trajectory points grouped into one statistical window.
-    WINDOW_SIZE: int = 40
-
     _diff_x_axis_arr: np.ndarray = np.array([])
     _diff_y_axis_arr: np.ndarray = np.array([])
     _diff_time_arr: np.ndarray = np.array([])
@@ -46,11 +42,12 @@ class BasePreprocessor:
     _extracted_features: dict = {}
     __features_dataframe: pd.DataFrame | None = None
 
-    def __init__(self, is_debug: bool = False):
+    def __init__(self, is_debug: bool = False, window_size: int = 40):
         """
         :param is_debug: When True, write intermediate DataFrames to parquet.
         """
         self.is_debug = is_debug
+        self._window_size = window_size
 
     def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
         """
@@ -97,7 +94,7 @@ class BasePreprocessor:
         Full pipeline for a single session DataFrame:
           1. Extract per-point kinematic features
           2. Deduplicate consecutive identical (x, y) points
-          3. Slice into non-overlapping windows of WINDOW_SIZE
+          3. Slice into non-overlapping windows of _window_size
           4. Compute [mean, std, max, min] per window in one vectorised pass
 
         :param session_df: Raw DataFrame for a single session
@@ -132,16 +129,16 @@ class BasePreprocessor:
     ) -> pd.DataFrame:
         """
         Full pipeline of statistics extraction:
-          1. Divide features_df into non-overlapping windows of WINDOW_SIZE rows
+          1. Divide features_df into non-overlapping windows of _window_size rows
           2. Compute [mean, std, max, min] for every feature column in a single pass
-          3. Compute features that are dependent on WINDOW_SIZE
+          3. Compute features that are dependent on _window_size
         :param features_df: Deduplicated per-point feature DataFrame for one session
         :param authentic: Authenticity label (0 or 1) for this session
         :return: Statistics DataFrame with one row per window
         """
         feature_cols = [c for c in features_df.columns if c not in _META_COLS]
         n = len(features_df)
-        window_ids = np.arange(n) // self.WINDOW_SIZE
+        window_ids = np.arange(n) // self._window_size
 
         agg_df = features_df[feature_cols].groupby(window_ids).agg(_STAT_FUNCS)
 
@@ -155,7 +152,7 @@ class BasePreprocessor:
         angle    = features_df["angle"].to_numpy()
         timestamps = features_df["timestamp"].to_numpy()
 
-        window_starts = np.arange(0, n, self.WINDOW_SIZE)
+        window_starts = np.arange(0, n, self._window_size)
         n_windows = len(window_starts)
 
         curve_length_w        = np.empty(n_windows)
@@ -166,7 +163,7 @@ class BasePreprocessor:
         acc_beginning_time_w  = np.zeros(n_windows)
 
         for i, start in enumerate(window_starts):
-            end = min(start + self.WINDOW_SIZE, n)
+            end = min(start + self._window_size, n)
             sl_traveled = traveled[start:end]
             sl_speed    = speed[start:end]
             sl_h_acc    = h_acc[start:end]

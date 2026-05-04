@@ -10,7 +10,7 @@ class EnumPreprocessors(Enum):
     MINECRAFT = "minecraft"
     KHAN = "khan"
 
-def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool) -> BasePreprocessor:
+def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool, window_size: int = 40) -> BasePreprocessor:
     """
     Factory function to preprocess the dataframes by users.
 
@@ -24,7 +24,7 @@ def load_preprocessor(preprocessor_name: EnumPreprocessors, is_debug: bool) -> B
     }
 
     if preprocessor_name in preprocessors:
-        preprocessor = preprocessors[preprocessor_name](is_debug)
+        preprocessor = preprocessors[preprocessor_name](is_debug, window_size)
         return preprocessor
     else:
         raise ValueError(f"Unknown preprocessor: {preprocessor_name}")

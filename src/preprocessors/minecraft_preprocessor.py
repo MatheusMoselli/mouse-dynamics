@@ -12,5 +12,3 @@ class MinecraftPreprocessor(BasePreprocessor):
     Inherits the full pipeline from BasePreprocessor. The window size of 10
     matches the granularity used in the reference article.
     """
-
-    WINDOW_SIZE: int = 10

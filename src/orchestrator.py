@@ -38,12 +38,14 @@ class Orchestrator:
                  preprocessor: EnumPreprocessors,
                  splitter: EnumSplitters,
                  classifier: EnumClassifiers,
+                 preprocessor_window_size: int = 40,
                  is_debug = False):
         self.extraction_data: ExtractionData | None = None
         self._dataset_enum = dataset
         self._preprocessor_enum = preprocessor
         self._splitter_enum = splitter
         self._classifier_enum = classifier
+        self._preprocessor_window_size = preprocessor_window_size
         self._is_debug = is_debug
 
     @staticmethod
@@ -74,7 +76,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Preprocessing.")
-        preprocessor = load_preprocessor(self._preprocessor_enum, self._is_debug)
+        preprocessor = load_preprocessor(self._preprocessor_enum, self._is_debug, self._preprocessor_window_size)
         self.extraction_data = preprocessor.preprocess(self.extraction_data)
         return self
 
