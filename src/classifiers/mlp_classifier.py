@@ -154,10 +154,10 @@ class MLPClassifier(BaseClassifier):
         return float(scores.mean())
 
     def _train_best_model(
-            self,
-            best_params: dict,
-            x_train: pd.DataFrame,
-            y_train: pd.Series,
+        self,
+        best_params: dict,
+        x_train: pd.DataFrame,
+        y_train: pd.Series,
     ) -> SkLearnMLPClassifier:
         """
         Train the final model.
@@ -166,18 +166,22 @@ class MLPClassifier(BaseClassifier):
         :param y_train: training labels
         :return: the best model
         """
-        return SkLearnMLPClassifier(
+        params = dict(
             hidden_layer_sizes=tuple(best_params[f"n_units_l{i}"] for i in range(best_params["n_layers"])),
             activation=best_params["activation"],
             solver=best_params["solver"],
             alpha=best_params["alpha"],
-            learning_rate=best_params["learning_rate"],
             learning_rate_init=best_params["learning_rate_init"],
             batch_size=best_params["batch_size"],
-            momentum=best_params.get("momentum", 0.9),
             max_iter=1000,
             early_stopping=True,
             validation_fraction=0.1,
             n_iter_no_change=20,
             random_state=42,
         )
+
+        if best_params["solver"] == "sgd":
+            params["learning_rate"] = best_params["learning_rate"]
+            params["momentum"] = best_params["momentum"]
+
+        return SkLearnMLPClassifier(**params)
