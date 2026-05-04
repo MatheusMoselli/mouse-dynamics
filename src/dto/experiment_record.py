@@ -16,6 +16,7 @@ class ExperimentRecord:
     dataset: str = ""
     preprocessor: str = ""
     splitter: str = ""
+    preprocessor_window_size: int = 40
     is_debug: bool = False
     user_results: list[dict] = field(default_factory=list)
 

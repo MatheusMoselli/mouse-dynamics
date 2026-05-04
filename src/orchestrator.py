@@ -133,6 +133,7 @@ class Orchestrator:
                 dataset_name=self._dataset_enum.value,
                 preprocessor_name=self._preprocessor_enum.value,
                 splitter_name=self._splitter_enum.value,
+                preprocessor_window_size=self._preprocessor_window_size,
                 is_debug=self._is_debug
         ) as experiment_logger:
             self._load_dataset() \

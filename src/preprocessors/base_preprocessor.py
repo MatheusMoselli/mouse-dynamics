@@ -45,6 +45,7 @@ class BasePreprocessor:
     def __init__(self, is_debug: bool = False, window_size: int = 40):
         """
         :param is_debug: When True, write intermediate DataFrames to parquet.
+        :param window_size: Size of the window the preprocessor will use the aggregate features
         """
         self.is_debug = is_debug
         self._window_size = window_size

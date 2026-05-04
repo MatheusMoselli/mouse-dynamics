@@ -21,6 +21,7 @@ class ExperimentLogger:
         dataset_name: str,
         preprocessor_name: str,
         splitter_name: str,
+        preprocessor_window_size: int = 40,
         is_debug: bool = False,
     ) -> None:
         """
@@ -28,6 +29,7 @@ class ExperimentLogger:
         :param dataset_name: EnumDatasets value
         :param preprocessor_name: EnumPreprocessors value
         :param splitter_name: EnumSplitters value
+        :param preprocessor_window_size: Size of the window the preprocessor will use the aggregate features
         :param is_debug: mirrors Orchestrator.is_debug
         """
         self._record = ExperimentRecord(
@@ -35,6 +37,7 @@ class ExperimentLogger:
             dataset=dataset_name,
             preprocessor=preprocessor_name,
             splitter=splitter_name,
+            preprocessor_window_size=preprocessor_window_size,
             is_debug=is_debug,
         )
         self._output_dir = Path(_DEFAULT_OUTPUT_DIR)
@@ -95,6 +98,7 @@ class ExperimentLogger:
         print(
             f"\n[ExperimentLogger] run={self._record.run_id} "
             f"| {self._record.classifier} × {self._record.dataset} "
+            f"| window_size={self._record.preprocessor_window_size} "
             f"| users={self._record.n_users} skipped={self._record.n_users_skipped} "
             f"| mean_balanced_score={self._record.mean_balanced_score:.4f} "
             f"| mean_f1_macro={self._record.mean_f1_macro:.4f}"
