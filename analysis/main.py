@@ -17,6 +17,10 @@ ALL_COMBINATIONS = [
 
 if __name__ == '__main__':
     for dataset, classifier, window_size in ALL_COMBINATIONS:
+        print("=" * 50)
+        print(f"Starting analysis for {dataset.value} - {classifier.value} (window_size = {window_size})")
+        print("=" * 50)
+        
         orchestrator = Orchestrator(
             dataset=dataset,
             splitter=EnumSplitters.HALF,
@@ -27,3 +31,7 @@ if __name__ == '__main__':
         )
 
         orchestrator.run()
+        
+        print("=" * 50)
+        print(f"Ending analysis for {dataset.value} - {classifier.value} (window_size = {window_size})")
+        print("=" * 50)
