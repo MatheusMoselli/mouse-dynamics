@@ -4,7 +4,7 @@ from src.orchestrator import Orchestrator
 from src.preprocessors import EnumPreprocessors
 from src.splitters import EnumSplitters
 
-ALL_DATASETS = [EnumDatasets.MINECRAFT, EnumDatasets.BALABIT, EnumDatasets.BOGAZICI]
+ALL_DATASETS = [EnumDatasets.BALABIT, EnumDatasets.MINECRAFT, EnumDatasets.BOGAZICI]
 ALL_CLASSIFIERS = [EnumClassifiers.RANDOM_FOREST, EnumClassifiers.MLP, EnumClassifiers.KNN]
 ALL_WINDOW_SIZES = [10, 50, 100, 150]
 

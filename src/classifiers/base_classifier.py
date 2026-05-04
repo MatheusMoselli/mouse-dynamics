@@ -132,7 +132,7 @@ class BaseClassifier(ABC):
             lambda trial: self._objective(trial, x_sample, y_sample),
             n_trials=self.NUMBER_OF_TRIALS,
             show_progress_bar=True,
-            n_jobs=3
+            n_jobs=-1
         )
 
         best_params = study.best_params
