@@ -13,16 +13,15 @@ jobs:
       - name: Install Kaggle CLI
         run: pip install kaggle
 
-      - name: List my datasets
+      - name: Configure Kaggle credentials
+        run: |
+          mkdir -p ~/.kaggle
+          echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+
+      - name: Test authentication
         run: kaggle datasets list -m
-        env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
 
       - name: Update Kaggle dataset (código do projeto)
-        env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
           kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}"
 
