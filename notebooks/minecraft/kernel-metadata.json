@@ -1,7 +1,7 @@
 {
   "id": "mmoselli/mouse-dynamics-minecraft-analysis",
   "title": "Mouse Dynamics Analysis: Minecraft",
-  "code_file": "minecraft.ipynb",
+  "code_file": "notebook.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": "true",

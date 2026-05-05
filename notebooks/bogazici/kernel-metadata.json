@@ -1,7 +1,7 @@
 {
-  "id": "mmoselli/mouse-dynamics-balabit-analysis",
-  "title": "Mouse Dynamics Analysis: Balabit",
-  "code_file": "balabit.ipynb",
+  "id": "mmoselli/mouse-dynamics-bogazici-analysis",
+  "title": "Mouse Dynamics Analysis: Bogazici",
+  "code_file": "notebook.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": "true",
