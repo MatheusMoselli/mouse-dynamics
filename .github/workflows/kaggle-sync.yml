@@ -9,9 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Install Kaggle CLI
         run: pip install kaggle
+
+      - name: Debug Kaggle
+        run: kaggle config view
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
 
       - name: Update Kaggle dataset (código do projeto)
         env:
