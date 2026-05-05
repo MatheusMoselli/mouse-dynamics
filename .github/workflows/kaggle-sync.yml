@@ -35,5 +35,4 @@ jobs:
           for dir in notebooks/*/; do
             echo "Enviando kernel em: $dir"
             kaggle kernels push -p "$dir"
-            echo "--------------------------------------"
           done
