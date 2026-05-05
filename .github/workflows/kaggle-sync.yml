@@ -7,25 +7,37 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Kaggle CLI
         run: pip install kaggle
 
       - name: Configure Kaggle credentials
         run: |
           mkdir -p ~/.kaggle
-          echo '${{ secrets.KAGGLE_KEY }}' > ~/.kaggle/access_token
-          chmod 600 ~/.kaggle/access_token
+          cat <<EOF > ~/.kaggle/kaggle.json
+          {
+            "username": "${{ secrets.KAGGLE_USERNAME }}",
+            "key": "${{ secrets.KAGGLE_KEY }}"
+          }
+          EOF
+          chmod 600 ~/.kaggle/kaggle.json
 
-      - name: Debug credentials
+      # 🔍 Debug opcional (pode remover depois que estiver funcionando)
+      - name: Debug Kaggle config
         run: |
-          echo "Username configurado:"
-          cat ~/.kaggle/kaggle.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['username'])"
-          echo "Testando autenticação:"
-          kaggle datasets list --mine
-          
+          echo "Conteúdo de ~/.kaggle:"
+          ls -la ~/.kaggle
+          echo "Arquivo kaggle.json:"
+          cat ~/.kaggle/kaggle.json
+
+      - name: Test authentication
+        run: |
+          kaggle config view
+          kaggle datasets list -u ${{ secrets.KAGGLE_USERNAME }}
+
       - name: Update Kaggle dataset (código do projeto)
         run: |
           kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}"
@@ -36,5 +48,6 @@ jobs:
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
           for metadata in notebooks/*_metadata.json; do
+            echo "Enviando kernel com metadata: $metadata"
             kaggle kernels push -p notebooks/ --kernel-metadata-path "$metadata"
           done
