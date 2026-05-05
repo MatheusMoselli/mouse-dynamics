@@ -17,10 +17,15 @@ jobs:
         run: |
           mkdir -p ~/.kaggle
           echo '{"username":"${{ secrets.KAGGLE_USERNAME }}","key":"${{ secrets.KAGGLE_KEY }}"}' > ~/.kaggle/kaggle.json
+          chmod 600 ~/.kaggle/kaggle.json
 
-      - name: Test authentication
-        run: kaggle datasets list -m
-
+      - name: Debug credentials
+        run: |
+          echo "Username configurado:"
+          cat ~/.kaggle/kaggle.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['username'])"
+          echo "Testando autenticação:"
+          kaggle datasets list --mine
+          
       - name: Update Kaggle dataset (código do projeto)
         run: |
           kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}"
