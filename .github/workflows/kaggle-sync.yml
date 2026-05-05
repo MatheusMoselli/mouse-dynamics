@@ -14,40 +14,23 @@ jobs:
       - name: Install Kaggle CLI
         run: pip install kaggle
 
-      - name: Configure Kaggle credentials
+      - name: Configure Kaggle API Token (NEW)
         run: |
           mkdir -p ~/.kaggle
-          cat <<EOF > ~/.kaggle/kaggle.json
-          {
-            "username": "${{ secrets.KAGGLE_USERNAME }}",
-            "key": "${{ secrets.KAGGLE_KEY }}"
-          }
-          EOF
-          chmod 600 ~/.kaggle/kaggle.json
-
-      # 🔍 Debug opcional (pode remover depois que estiver funcionando)
-      - name: Debug Kaggle config
-        run: |
-          echo "Conteúdo de ~/.kaggle:"
-          ls -la ~/.kaggle
-          echo "Arquivo kaggle.json:"
-          cat ~/.kaggle/kaggle.json
+          echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/access_token
+          chmod 600 ~/.kaggle/access_token
 
       - name: Test authentication
         run: |
           kaggle config view
-          kaggle datasets list -u ${{ secrets.KAGGLE_USERNAME }}
+          kaggle datasets list
 
-      - name: Update Kaggle dataset (código do projeto)
+      - name: Update Kaggle dataset
         run: |
           kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}"
 
       - name: Push notebooks to Kaggle
-        env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
           for metadata in notebooks/*_metadata.json; do
-            echo "Enviando kernel com metadata: $metadata"
             kaggle kernels push -p notebooks/ --kernel-metadata-path "$metadata"
           done
