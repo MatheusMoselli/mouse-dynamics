@@ -52,7 +52,7 @@ class RandomForestClassifier(BaseClassifier):
                     random_state=42
                 )
             else:
-                study_name = f"rf_user_{user.id}"
+                study_name = f"user{user.id}"
 
                 model = self._get_best_model(
                     x_train,
@@ -94,22 +94,20 @@ class RandomForestClassifier(BaseClassifier):
         :return: the mean of scores in the trial
         """
         params = {
-            "n_estimators": trial.suggest_int("n_estimators", 100, 800, step=100),
+            "n_estimators": trial.suggest_int("n_estimators", 100, 400, step=50),
 
-            "max_depth": trial.suggest_categorical(
-                "max_depth", [None, 5, 10, 15, 20, 30]
-            ),
+            "max_depth": trial.suggest_int("max_depth", 5, 20),
 
             "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
 
             "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 20),
 
             "max_features": trial.suggest_categorical(
-                "max_features", ["sqrt", "log2", None, 0.5, 0.8]
+                "max_features", ["sqrt", "log2", 0.5]
             ),
 
             "criterion": trial.suggest_categorical(
-                "criterion", ["gini", "entropy", "log_loss"]
+                "criterion", ["gini", "entropy"]
             ),
 
             "bootstrap": trial.suggest_categorical(

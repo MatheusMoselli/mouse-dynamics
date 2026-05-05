@@ -119,12 +119,14 @@ class BaseClassifier(ABC):
             x_train, y_train, train_size=0.3, stratify=y_train
         )
 
+        full_study_name = f"{self._experiment_logger._record.classifier}_{self._experiment_logger._record.dataset}__{study_name}"
+
         study = optuna.create_study(
             direction="maximize",
             sampler=optuna.samplers.TPESampler(seed=42),
             pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
-            study_name=f"{study_name}__{self._experiment_logger._record.run_id}.db",
-            storage=f"sqlite:///optuna/{study_name}__{self._experiment_logger._record.run_id}.db",
+            study_name=f"{full_study_name}.db",
+            storage=f"sqlite:///optuna/{full_study_name}.db",
             load_if_exists=True
         )
 

@@ -52,7 +52,7 @@ class MLPClassifier(BaseClassifier):
                     random_state=42
                 )
             else:
-                study_name = f"mlp_user_{user.id}"
+                study_name = f"user{user.id}"
 
                 model = self._get_best_model(
                     x_train,

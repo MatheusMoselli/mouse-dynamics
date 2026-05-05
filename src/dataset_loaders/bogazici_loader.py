@@ -113,7 +113,10 @@ class BogaziciLoader(BaseDatasetLoader):
                 label = self._authenticity_labels.get(f"{session_name}.csv")
 
                 if label is None:
-                    logger.warning(f"No label found for session {session_name!r}, skipping.")
+                    
+                    if self.is_debug:
+                        logger.warning(f"No label found for session {session_name!r}, skipping.")
+                    
                     continue
 
                 standardized_df["authentic"] = 1 if int(label) == 0 else 0 # if label = 1, illegal

@@ -46,7 +46,7 @@ class KNNClassifier(BaseClassifier):
                     n_jobs=1
                 )
             else:
-                study_name = f"knn_user_{user.id}"
+                study_name = f"user{user.id}"
 
                 model = self._get_best_model(
                     x_train,
@@ -107,6 +107,10 @@ class KNNClassifier(BaseClassifier):
 
         if metric == "minkowski":
             params["p"] = trial.suggest_int("p", 1, 4)
+            
+        if params["algorithm"] in ["auto", "ball_tree", "kd_tree"]:
+            params["leaf_size"] = trial.suggest_int("leaf_size", 10, 100)
+
 
         model = KNeighborsClassifier(
             **params,
@@ -146,5 +150,5 @@ class KNNClassifier(BaseClassifier):
             metric=best_params["metric"],
             p=best_params.get("p", 2),
             algorithm=best_params["algorithm"],
-            leaf_size=best_params["leaf_size"]
+            leaf_size=best_params.get("leaf_size", 30)
         )
