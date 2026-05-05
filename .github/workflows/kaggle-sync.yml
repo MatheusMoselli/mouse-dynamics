@@ -13,8 +13,8 @@ jobs:
       - name: Install Kaggle CLI
         run: pip install kaggle
 
-      - name: Debug Kaggle
-        run: kaggle config view
+      - name: List my datasets
+        run: kaggle datasets list -m
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
