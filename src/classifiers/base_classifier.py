@@ -126,7 +126,7 @@ class BaseClassifier(ABC):
             sampler=optuna.samplers.TPESampler(seed=42),
             pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
             study_name=f"{full_study_name}.db",
-            storage=f"sqlite:///optuna/{full_study_name}.db",
+            storage=f"sqlite:///best-parameters/{self._experiment_logger._record.dataset}/{full_study_name}.db",
             load_if_exists=True
         )
 

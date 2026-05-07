@@ -19,16 +19,10 @@ jobs:
           mkdir -p ~/.kaggle
           echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/access_token
           chmod 600 ~/.kaggle/access_token
-          rm -f ~/.kaggle/kaggle.json  # garante que não usa legacy
-
-      - name: Test authentication
-        run: |
-          kaggle config view
-          kaggle kernels list
 
       - name: Update Kaggle dataset
         run: |
-          kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}"
+          kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}" --dir-mode zip
 
       - name: Push notebooks to Kaggle
         run: |

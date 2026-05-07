@@ -1,6 +1,7 @@
 {
   "title": "Mouse Dynamics IC",
   "id": "mmoselli/mouse-dynamics-ic",
+  "isPrivate": true,
   "licenses": [
     {
       "name": "MIT"
