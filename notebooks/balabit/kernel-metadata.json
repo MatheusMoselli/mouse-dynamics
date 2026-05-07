@@ -10,8 +10,6 @@
   "enable_internet": true,
   "dataset_sources": [
     "mmoselli/mouse-dynamics-balabit",
-    "mmoselli/mouse-dynamics-bogazici",
-    "mmoselli/mouse-dynamics-minecraft",
     "mmoselli/mouse-dynamics-ic"
   ],
   "competition_sources": [],
