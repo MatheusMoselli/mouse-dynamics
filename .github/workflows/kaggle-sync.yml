@@ -20,10 +20,6 @@ jobs:
           echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/access_token
           chmod 600 ~/.kaggle/access_token
 
-      - name: Update Kaggle dataset
-        run: |
-          kaggle datasets version -p . -m "Auto-sync from commit ${{ github.sha }}" --dir-mode zip
-
       - name: Push notebooks to Kaggle
         run: |
           for dir in notebooks/*/; do
