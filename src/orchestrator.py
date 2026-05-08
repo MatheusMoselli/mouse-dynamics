@@ -37,14 +37,14 @@ class Orchestrator:
                  dataset: EnumDatasets,
                  preprocessor: EnumPreprocessors,
                  splitter: EnumSplitters,
-                 classifier: EnumClassifiers,
+                 classifiers: list[EnumClassifiers],
                  preprocessor_window_size: int = 40,
                  is_debug = False):
         self.extraction_data: ExtractionData | None = None
         self._dataset_enum = dataset
         self._preprocessor_enum = preprocessor
         self._splitter_enum = splitter
-        self._classifier_enum = classifier
+        self._classifiers_enum = classifiers
         self._preprocessor_window_size = preprocessor_window_size
         self._is_debug = is_debug
 
@@ -90,15 +90,24 @@ class Orchestrator:
         self.extraction_data = splitter.split(self.extraction_data)
         return self
 
-    def _fit(self, experiment_logger: ExperimentLogger):
+    def _fit(self):
         """
         Call the classifier method for training the classifier and testing it.
         :return: self
         """
-        logger.info(f"Fitting.")
-        classifier = load_classifier(self._classifier_enum, self._is_debug)
-        classifier.set_experiment_logger(experiment_logger)
-        classifier.fit(self.extraction_data)
+        for classifier in self._classifiers_enum:
+            with ExperimentLogger(
+                    classifier_name=self._classifiers_enum.value,
+                    dataset_name=self._dataset_enum.value,
+                    preprocessor_name=self._preprocessor_enum.value,
+                    splitter_name=self._splitter_enum.value,
+                    preprocessor_window_size=self._preprocessor_window_size,
+                    is_debug=self._is_debug
+            ) as experiment_logger:
+                logger.info(f"Fitting: [{classifier.value}]")
+                classifier = load_classifier(self._classifiers_enum, self._is_debug)
+                classifier.set_experiment_logger(experiment_logger)
+                classifier.fit(self.extraction_data)
         return self
 
     def _clean_previous_debug_files(self):
@@ -128,15 +137,7 @@ class Orchestrator:
         if self._is_debug:
             self._clean_previous_debug_files()
 
-        with ExperimentLogger(
-                classifier_name=self._classifier_enum.value,
-                dataset_name=self._dataset_enum.value,
-                preprocessor_name=self._preprocessor_enum.value,
-                splitter_name=self._splitter_enum.value,
-                preprocessor_window_size=self._preprocessor_window_size,
-                is_debug=self._is_debug
-        ) as experiment_logger:
-            self._load_dataset() \
-                ._preprocess() \
-                ._split() \
-                ._fit(experiment_logger)
+        self._load_dataset() \
+            ._preprocess() \
+            ._split() \
+            ._fit()
