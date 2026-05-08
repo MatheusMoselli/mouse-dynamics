@@ -2,6 +2,7 @@
 Generic preprocessor for feature extraction and statistical analysis.
 """
 from pathlib import Path
+import gc
 import numpy as np
 import pandas as pd
 import logging
@@ -68,6 +69,8 @@ class BasePreprocessor:
 
             if self.is_debug:
                 self._write_debug_files(user)
+                
+            gc.collect()
 
         return extraction_data
 
