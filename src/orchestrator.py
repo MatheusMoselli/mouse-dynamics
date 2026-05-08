@@ -97,7 +97,7 @@ class Orchestrator:
         """
         for classifier in self._classifiers_enum:
             with ExperimentLogger(
-                    classifier_name=self._classifiers_enum.value,
+                    classifier_name=classifier.value,
                     dataset_name=self._dataset_enum.value,
                     preprocessor_name=self._preprocessor_enum.value,
                     splitter_name=self._splitter_enum.value,
@@ -105,9 +105,9 @@ class Orchestrator:
                     is_debug=self._is_debug
             ) as experiment_logger:
                 logger.info(f"Fitting: [{classifier.value}]")
-                classifier = load_classifier(self._classifiers_enum, self._is_debug)
-                classifier.set_experiment_logger(experiment_logger)
-                classifier.fit(self.extraction_data)
+                loaded_classifier = load_classifier(classifier, self._is_debug)
+                loaded_classifier.set_experiment_logger(experiment_logger)
+                loaded_classifier.fit(self.extraction_data)
         return self
 
     def _clean_previous_debug_files(self):
