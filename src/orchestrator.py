@@ -82,7 +82,7 @@ class Orchestrator:
             self._preprocessor_enum, 
             self._is_debug, 
             self._preprocessor_window_size,
-            self.is_memory_efficiency_necessary
+            self._is_memory_efficiency_necessary
         )
         
         self.extraction_data = preprocessor.preprocess(self.extraction_data)
