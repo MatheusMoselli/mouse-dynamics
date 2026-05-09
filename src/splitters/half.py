@@ -80,12 +80,14 @@ class HalfSplitter(BaseSplitter):
         gc.collect()
 
         for user in users:
-            true_user_df = self._read_user_training_from_disk(user.id)
+            user.training_sessions = {}
+        gc.collect()
 
+        for user in users:
             authentic_df_size = authentic_sizes[user.id]
             per_support_size = authentic_df_size // n_support
 
-            all_training_dfs = [true_user_df]
+            final_training_df = self._read_user_training_from_disk(user.id)
 
             for support_user in users:
                 if support_user.id == user.id:
@@ -94,16 +96,19 @@ class HalfSplitter(BaseSplitter):
                 support_df = self._read_user_training_from_disk(support_user.id)
                 support_df = support_df.iloc[:per_support_size].copy()
                 support_df["authentic"] = 0
-                all_training_dfs.append(support_df)
-                del support_df
 
-            final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            del all_training_dfs
-            gc.collect()
+                final_training_df = pd.concat(
+                    [final_training_df, support_df], ignore_index=True
+                )
+                del support_df
+                gc.collect()
 
             merged_testing_df = user.merged_sessions(EnumTypeOfSession.TESTING)
             user.training_sessions = {"_merged": final_training_df}
             user.testing_sessions = {"_merged": merged_testing_df}
+
+            del final_training_df, merged_testing_df
+            gc.collect()
 
             self._write_debug_file(user)
 
