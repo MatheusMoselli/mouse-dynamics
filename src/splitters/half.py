@@ -25,7 +25,7 @@ class HalfSplitter(BaseSplitter):
         :param extraction_data:  the list of datasets to be split
         :return: The list of train/test sets
         """
-        if self.is_debug:
+        if self.is_memory_efficiency_necessary:
             return self._split_from_disk(extraction_data)
         
         return self._split_in_memory(extraction_data)
@@ -61,7 +61,7 @@ class HalfSplitter(BaseSplitter):
 
     def _split_from_disk(self, extraction_data: ExtractionData) -> ExtractionData:
         """
-        Memory-efficient split path used when is_debug=True.
+        Memory-efficient split path used when is_memory_efficiency_necessary=True.
         Reads support-user training data directly from the Parquet files that
         BasePreprocessor already wrote to disk; no full in-memory cache needed.
         """
@@ -112,7 +112,7 @@ class HalfSplitter(BaseSplitter):
 
     def _split_in_memory(self, extraction_data: ExtractionData) -> ExtractionData:
         """
-        Original in-memory split path used when is_debug=False.
+        Original in-memory split path used when is_memory_efficiency_necessary=False.
         """
         users = extraction_data.users
         n_support = len(users) - 1
@@ -146,6 +146,9 @@ class HalfSplitter(BaseSplitter):
             merged_testing_df = user.merged_sessions(EnumTypeOfSession.TESTING)
             user.training_sessions = {"_merged": final_training_df}
             user.testing_sessions = {"_merged": merged_testing_df}
+            
+            if self.is_debug:
+                self._write_debug_file(user)
 
         training_cache.clear()
         gc.collect()
