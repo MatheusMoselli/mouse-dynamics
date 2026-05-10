@@ -138,7 +138,7 @@ class BaseClassifier(ABC):
         study.optimize(
             lambda trial: self._objective(trial, x_sample, y_sample),
             n_trials=self.NUMBER_OF_TRIALS,
-            show_progress_bar=True,
+            show_progress_bar=False,
             n_jobs=-1
         )
 

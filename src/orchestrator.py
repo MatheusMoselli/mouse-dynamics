@@ -2,6 +2,8 @@
 Orchestrator for code centralization.
 Keep all the logic hidden from the result analysis.
 """
+import gc
+
 from src.dataset_loaders import (load_dataset, EnumDatasets)
 from src.classifiers import (load_classifier, EnumClassifiers)
 from src.dto import ExtractionData
@@ -154,3 +156,6 @@ class Orchestrator:
             ._preprocess() \
             ._split() \
             ._fit()
+            
+        self.extraction_data = None
+        gc.collect()
