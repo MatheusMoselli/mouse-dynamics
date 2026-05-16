@@ -6,7 +6,6 @@ import pandas as pd
 from pandas import Series
 from typing import Optional
 from abc import ABC, abstractmethod
-
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from src.utils.experiment_logger import ExperimentLogger

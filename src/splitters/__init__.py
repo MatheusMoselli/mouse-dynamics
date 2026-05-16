@@ -12,7 +12,7 @@ class EnumSplitters(Enum):
     FIFTY_FIFTY = "fifty_fifty"
     HALF = "half"
 
-def load_splitter(splitter_name: EnumSplitters, is_debug: bool) -> BaseSplitter:
+def load_splitter(splitter_name: EnumSplitters, is_debug: bool, window_size: bool) -> BaseSplitter:
     """
     Factory function to split the datasets between train/test sets.
 
@@ -27,7 +27,7 @@ def load_splitter(splitter_name: EnumSplitters, is_debug: bool) -> BaseSplitter:
     }
 
     if splitter_name in splitters:
-        splitter = splitters[splitter_name](is_debug)
+        splitter = splitters[splitter_name](is_debug, window_size)
         return splitter
     else:
         raise ValueError(f"Unknown splitter: {splitter_name}")

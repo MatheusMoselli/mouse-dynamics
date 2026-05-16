@@ -13,12 +13,13 @@ class BaseSplitter:
     The features should already be extracted at this point
     """
 
-    def __init__(self, is_debug: bool = False):
+    def __init__(self, is_debug: bool = False, window_size: bool = False):
         """
         Class initialization.
         :param is_debug: Is the splitter being run in debug mode.
         """
         self.is_debug = is_debug
+        self.window_size = window_size
 
     @abstractmethod
     def split(self, extraction_data: ExtractionData) -> ExtractionData:
@@ -29,8 +30,7 @@ class BaseSplitter:
         """
         pass
 
-    @staticmethod
-    def _write_debug_file(user: UserDataDto) -> None:
+    def _write_debug_file(self, user: UserDataDto) -> None:
         """
         Write the debug file.
         :param user: The user to write the debug file.
@@ -38,5 +38,5 @@ class BaseSplitter:
         directory_path = Path(f"../datasets/split/user{user.id}")
         directory_path.mkdir(parents=True, exist_ok=True)
 
-        log_dataframe_sessions(directory_path / "training", user.training_sessions)
-        log_dataframe_sessions(directory_path / "testing", user.testing_sessions)
+        log_dataframe_sessions(directory_path / "training" / f"{self.window_size}", user.training_sessions)
+        log_dataframe_sessions(directory_path / "testing" / f"{self.window_size}", user.testing_sessions)

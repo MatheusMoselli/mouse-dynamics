@@ -86,7 +86,7 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Splitting.")
-        splitter = load_splitter(self._splitter_enum, self._is_debug)
+        splitter = load_splitter(self._splitter_enum, self._is_debug, self._preprocessor_window_size)
         self.extraction_data = splitter.split(self.extraction_data)
         return self
 
