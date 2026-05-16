@@ -18,10 +18,6 @@ class MLPClassifier(BaseClassifier):
     """
     Custom MLP classifier following the project pattern
     """
-
-    def __init__(self, is_debug: bool = False):
-        super().__init__(is_debug)
-
     def fit(self, extraction_data: ExtractionData):
         """
         Fit the user`s datas into the MLP classifier.

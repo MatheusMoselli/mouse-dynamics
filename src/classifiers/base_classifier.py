@@ -21,12 +21,13 @@ class BaseClassifier(ABC):
     NUMBER_OF_TRIALS = 15
     _experiment_logger: ExperimentLogger = None
 
-    def __init__(self, is_debug: bool = False):
+    def __init__(self, is_debug: bool = False, is_memory_efficiency_necessary: bool = False):
         """
         Class initialization.
         :param is_debug: Is the classifier being run in debug mode.
         """
         self.is_debug = is_debug
+        self.is_memory_efficiency_necessary = is_memory_efficiency_necessary
 
     def set_experiment_logger(self, experiment_logger: ExperimentLogger):
         """
@@ -114,9 +115,13 @@ class BaseClassifier(ABC):
         :param study_name: name of the study
         :return: the best model
         """
-        x_sample, _, y_sample, _ = train_test_split(
-            x_train, y_train, train_size=0.3, stratify=y_train
-        )
+        if self.is_memory_efficiency_necessary:
+            x_sample, _, y_sample, _ = train_test_split(
+                x_train, y_train, train_size=0.3, stratify=y_train
+            )
+        else:
+            x_sample = x_train
+            y_sample = y_train
 
         full_study_name = f"{self._experiment_logger._record.classifier}_{self._experiment_logger._record.dataset}__{study_name}"
 
@@ -132,7 +137,7 @@ class BaseClassifier(ABC):
         study.optimize(
             lambda trial: self._objective(trial, x_sample, y_sample),
             n_trials=self.NUMBER_OF_TRIALS,
-            show_progress_bar=True,
+            show_progress_bar=False,
             n_jobs=-1
         )
 

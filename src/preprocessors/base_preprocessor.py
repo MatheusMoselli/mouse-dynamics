@@ -43,13 +43,18 @@ class BasePreprocessor:
     _extracted_features: dict = {}
     __features_dataframe: pd.DataFrame | None = None
 
-    def __init__(self, is_debug: bool = False, window_size: int = 40):
+    def __init__(
+        self, 
+        is_debug: bool = False, 
+        window_size: int = 40,
+        is_memory_efficiency_necessary = False):
         """
         :param is_debug: When True, write intermediate DataFrames to parquet.
         :param window_size: Size of the window the preprocessor will use the aggregate features
         """
         self.is_debug = is_debug
         self._window_size = window_size
+        self.is_memory_efficiency_necessary = is_memory_efficiency_necessary
 
     def preprocess(self, extraction_data: ExtractionData) -> ExtractionData:
         """
@@ -67,9 +72,23 @@ class BasePreprocessor:
 
             logger.info(f"User {user.id}: statistical features extracted")
 
-            if self.is_debug:
+            if self.is_debug or self.is_memory_efficiency_necessary:
                 self._write_debug_files(user)
                 
+            self._diff_x_axis_arr = np.array([])
+            self._diff_y_axis_arr = np.array([])
+            self._diff_time_arr   = np.array([])
+            self._traveled_distance = np.array([])
+            self.curve_length     = np.array([])
+            self._speed = np.array([])
+            self._horizontal_speed = np.array([])
+            self._vertical_speed  = np.array([])
+            self._acceleration    = np.array([])
+            self._horizontal_acceleration = np.array([])
+            self._vertical_acceleration   = np.array([])
+            self._extracted_features = {}
+            self.__features_dataframe = None
+
             gc.collect()
 
         return extraction_data

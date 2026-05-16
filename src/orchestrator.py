@@ -2,6 +2,8 @@
 Orchestrator for code centralization.
 Keep all the logic hidden from the result analysis.
 """
+import gc
+
 from src.dataset_loaders import (load_dataset, EnumDatasets)
 from src.classifiers import (load_classifier, EnumClassifiers)
 from src.dto import ExtractionData
@@ -39,7 +41,8 @@ class Orchestrator:
                  splitter: EnumSplitters,
                  classifiers: list[EnumClassifiers],
                  preprocessor_window_size: int = 40,
-                 is_debug = False):
+                 is_debug = False,
+                 is_memory_efficiency_necessary=False):
         self.extraction_data: ExtractionData | None = None
         self._dataset_enum = dataset
         self._preprocessor_enum = preprocessor
@@ -47,6 +50,7 @@ class Orchestrator:
         self._classifiers_enum = classifiers
         self._preprocessor_window_size = preprocessor_window_size
         self._is_debug = is_debug
+        self._is_memory_efficiency_necessary = is_memory_efficiency_necessary
 
     @staticmethod
     def __rebuild_directory(directory_path: str):
@@ -76,7 +80,13 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Preprocessing.")
-        preprocessor = load_preprocessor(self._preprocessor_enum, self._is_debug, self._preprocessor_window_size)
+        preprocessor = load_preprocessor(
+            self._preprocessor_enum, 
+            self._is_debug, 
+            self._preprocessor_window_size,
+            self._is_memory_efficiency_necessary
+        )
+        
         self.extraction_data = preprocessor.preprocess(self.extraction_data)
         return self
 
@@ -105,7 +115,7 @@ class Orchestrator:
                     is_debug=self._is_debug
             ) as experiment_logger:
                 logger.info(f"Fitting: [{classifier.value}]")
-                loaded_classifier = load_classifier(classifier, self._is_debug)
+                loaded_classifier = load_classifier(classifier, self._is_debug, self._is_memory_efficiency_necessary)
                 loaded_classifier.set_experiment_logger(experiment_logger)
                 loaded_classifier.fit(self.extraction_data)
         return self
@@ -141,3 +151,6 @@ class Orchestrator:
             ._preprocess() \
             ._split() \
             ._fit()
+            
+        self.extraction_data = None
+        gc.collect()

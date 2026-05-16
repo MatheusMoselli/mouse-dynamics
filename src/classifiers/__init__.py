@@ -12,7 +12,7 @@ class EnumClassifiers(Enum):
     MLP = "mlp"
     KNN = "knn"
 
-def load_classifier(classifier_name: EnumClassifiers, is_debug: bool) -> BaseClassifier:
+def load_classifier(classifier_name: EnumClassifiers, is_debug: bool, is_memory_efficiency_necessary: bool = False) -> BaseClassifier:
     """
     Factory function to classify and fit the dataframes by user.
 
@@ -27,7 +27,7 @@ def load_classifier(classifier_name: EnumClassifiers, is_debug: bool) -> BaseCla
     }
 
     if classifier_name in classifiers:
-        classifier = classifiers[classifier_name](is_debug)
+        classifier = classifiers[classifier_name](is_debug, is_memory_efficiency_necessary)
         return classifier
     else:
         raise ValueError(f"Unknown classifier: {classifier_name}")
