@@ -11,8 +11,8 @@ def prepare_extraction_data_from_parquet(window_size: int) -> ExtractionData:
         user_id = user.stem.replace("user", "")
         user_dto = UserDataDto(user_id)
 
-        user_dto.training_sessions = {"_merged": read_parquet(user / str(window_size) / "training" / "_merged.parquet")}
-        user_dto.testing_sessions  = {"_merged": read_parquet(user / str(window_size) / "testing"  / "_merged.parquet")}
+        user_dto.training_sessions = {"_merged": read_parquet(user / "training" / str(window_size) / "_merged.parquet")}
+        user_dto.testing_sessions  = {"_merged": read_parquet(user / "testing" / str(window_size) / "_merged.parquet")}
 
         extraction_data.add_user(user_dto)
 
