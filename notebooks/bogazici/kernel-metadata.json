@@ -9,7 +9,7 @@
   "enable_tpu": false,
   "enable_internet": true,
   "dataset_sources": [
-    "mmoselli/mouse-dynamics-bogazici",
+    "mmoselli/mouse-dynamics-bogazici-split",
     "mmoselli/mouse-dynamics-ic"
   ],
   "competition_sources": [],

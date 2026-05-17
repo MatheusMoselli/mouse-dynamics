@@ -13,9 +13,3 @@ jobs:
 
       - name: Install Kaggle CLI
         run: pip install kaggle
-
-      - name: Configure Kaggle API Token
-        run: |
-          mkdir -p ~/.kaggle
-          echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/access_token
-          chmod 600 ~/.kaggle/access_token
