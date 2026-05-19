@@ -1,6 +1,8 @@
 """
 Base classifier for better abstraction and dependency injection
 """
+import logging
+
 import optuna
 import pandas as pd
 from pandas import Series
@@ -12,6 +14,7 @@ from src.utils.experiment_logger import ExperimentLogger
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 
 _DROP_COLS = ["authentic"]
+logger = logging.getLogger(__name__)
 
 class BaseClassifier(ABC):
     """
@@ -129,12 +132,23 @@ class BaseClassifier(ABC):
             load_if_exists=True
         )
 
-        study.optimize(
-            lambda trial: self._objective(trial, x_sample, y_sample),
-            n_trials=self.NUMBER_OF_TRIALS,
-            show_progress_bar=True,
-            n_jobs=-1
-        )
+        completed = len([
+            t for t in study.trials
+            if t.state == optuna.trial.TrialState.COMPLETE
+        ])
+
+        remaining = max(0, self.NUMBER_OF_TRIALS - completed)
+
+        if remaining == 0:
+            logger.info(f"Study {full_study_name} já completo ({completed} trials), pulando otimização.")
+        else:
+            logger.info(f"Study {full_study_name}: {completed} trials existentes, rodando {remaining} restantes.")
+            study.optimize(
+                lambda trial: self._objective(trial, x_sample, y_sample),
+                n_trials=remaining,
+                show_progress_bar=False,
+                n_jobs=-1,
+            )
 
         best_params = study.best_params
 
