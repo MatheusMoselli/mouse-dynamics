@@ -1,0 +1,18 @@
+{
+  "id": "mmoselli/mouse-dynamics-analysis-bogazici-user3",
+  "title": "Mouse Dynamics Analysis: Bogazici - User3",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "mmoselli/mouse-dynamics-bogazici-split",
+    "mmoselli/mouse-dynamics-ic"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
