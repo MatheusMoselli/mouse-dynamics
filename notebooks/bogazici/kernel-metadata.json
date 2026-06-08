@@ -1,6 +1,6 @@
 {
-  "id": "mmoselli/mouse-dynamics-analysis-bogazici-ex-user8",
-  "title": "Mouse Dynamics Analysis: Bogazici - Ex - User8",
+  "id": "mmoselli/mouse-dynamics-analysis-bogazici",
+  "title": "Mouse Dynamics Analysis: Bogazici",
   "code_file": "notebook.ipynb",
   "language": "python",
   "kernel_type": "notebook",
@@ -9,7 +9,7 @@
   "enable_tpu": false,
   "enable_internet": true,
   "dataset_sources": [
-    "mmoselli/mouse-dynamics-bogazici-split",
+    "mmoselli/mouse-dynamics-bogazici",
     "mmoselli/mouse-dynamics-ic"
   ],
   "competition_sources": [],
