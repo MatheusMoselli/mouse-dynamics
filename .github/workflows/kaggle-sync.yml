@@ -19,10 +19,3 @@ jobs:
           mkdir -p ~/.kaggle
           echo "${{ secrets.KAGGLE_KEY }}" > ~/.kaggle/access_token
           chmod 600 ~/.kaggle/access_token
-          
-      - name: Push notebooks to Kaggle
-        run: |
-          for dir in notebooks/*/; do
-            echo "Enviando kernel em: $dir"
-            kaggle kernels push -p "$dir"
-          done
