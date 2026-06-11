@@ -150,5 +150,7 @@ class KNNClassifier(BaseClassifier):
             metric=best_params["metric"],
             p=best_params.get("p", 2),
             algorithm=best_params["algorithm"],
-            leaf_size=best_params.get("leaf_size", 30)
+            leaf_size=best_params.get("leaf_size", 30),
+            random_state=42,
+            n_jobs=-1
         )

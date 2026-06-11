@@ -157,6 +157,7 @@ class RandomForestClassifier(BaseClassifier):
         params = {k: v for k, v in best_params.items() if k != "class_weight"}
         params["class_weight"] = best_params.get("class_weight")
         params["random_state"] = 42
+        params["n_jobs"] = -1
 
         model = SkLearnRandomForestClassifier(**params)
         model.fit(x_train, y_train)
