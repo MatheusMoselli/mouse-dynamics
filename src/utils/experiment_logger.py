@@ -23,6 +23,7 @@ class ExperimentLogger:
         splitter_name: str,
         preprocessor_window_size: int = 40,
         is_debug: bool = False,
+        seed_number: int = 1
     ) -> None:
         """
         :param classifier_name: EnumClassifiers value
@@ -31,6 +32,7 @@ class ExperimentLogger:
         :param splitter_name: EnumSplitters value
         :param preprocessor_window_size: Size of the window the preprocessor will use the aggregate features
         :param is_debug: mirrors Orchestrator.is_debug
+        :param seed_number: seed number for reproducibility
         """
         self._record = ExperimentRecord(
             classifier=classifier_name,
@@ -39,6 +41,7 @@ class ExperimentLogger:
             splitter=splitter_name,
             preprocessor_window_size=preprocessor_window_size,
             is_debug=is_debug,
+            seed_number=seed_number
         )
         self._output_dir = Path(_DEFAULT_OUTPUT_DIR)
         self._output_dir.mkdir(parents=True, exist_ok=True)
@@ -97,7 +100,7 @@ class ExperimentLogger:
 
         print(
             f"\n[ExperimentLogger] run={self._record.run_id} "
-            f"| {self._record.classifier} × {self._record.dataset} "
+            f"| {self._record.classifier} x {self._record.dataset} "
             f"| window_size={self._record.preprocessor_window_size} "
             f"| users={self._record.n_users} skipped={self._record.n_users_skipped} "
             f"| mean_balanced_score={self._record.mean_balanced_score:.4f} "
@@ -109,7 +112,7 @@ class ExperimentLogger:
         Persist the file in the output directory
         :return:
         """
-        filename = f"{self._record.run_id}.json"
+        filename = f"{self._record.run_id}_{self._record.classifier}_wind{self._record.preprocessor_window_size}_00{self._record.seed_number}.json"
         json_path = self._output_dir / filename
 
         with json_path.open("w", encoding="utf-8") as f:

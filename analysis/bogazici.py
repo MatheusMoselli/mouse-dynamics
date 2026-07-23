@@ -8,7 +8,7 @@ ALL_CLASSIFIERS  = [EnumClassifiers.RANDOM_FOREST, EnumClassifiers.MLP, EnumClas
 ALL_WINDOW_SIZES = [10, 50, 100, 150, 200, 250]
 ALL_SEEDS = [1, 2, 3, 4, 5]
 
-total = len(ALL_CLASSIFIERS) * len(ALL_WINDOW_SIZES) * ALL_SEEDS
+total = len(ALL_CLASSIFIERS) * len(ALL_WINDOW_SIZES) * len(ALL_SEEDS)
 count = 0
 
 for seed in ALL_SEEDS:

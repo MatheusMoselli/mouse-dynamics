@@ -111,7 +111,8 @@ class Orchestrator:
                     preprocessor_name=self._preprocessor_enum.value,
                     splitter_name=self._splitter_enum.value,
                     preprocessor_window_size=self._preprocessor_window_size,
-                    is_debug=self._is_debug
+                    is_debug=self._is_debug,
+                    seed_number=self._seed_number
             ) as experiment_logger:
                 logger.info(f"Fitting: [{classifier.value}]")
                 loaded_classifier = load_classifier(classifier, self._is_debug, self._seed_number)

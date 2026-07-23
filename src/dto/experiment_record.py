@@ -18,6 +18,7 @@ class ExperimentRecord:
     splitter: str = ""
     preprocessor_window_size: int = 40
     is_debug: bool = False
+    seed_number: int = 1
     user_results: list[dict] = field(default_factory=list)
 
     mean_score: float = 0.0
