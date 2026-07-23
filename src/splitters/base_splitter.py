@@ -13,13 +13,14 @@ class BaseSplitter:
     The features should already be extracted at this point
     """
 
-    def __init__(self, is_debug: bool = False, window_size: bool = False):
+    def __init__(self, is_debug: bool = False, window_size: int = 10, seed_number: int = 1):
         """
         Class initialization.
         :param is_debug: Is the splitter being run in debug mode.
         """
         self.is_debug = is_debug
         self.window_size = window_size
+        self.seed_number = seed_number
 
     @abstractmethod
     def split(self, extraction_data: ExtractionData) -> ExtractionData:

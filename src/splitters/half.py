@@ -26,39 +26,67 @@ class HalfSplitter(BaseSplitter):
         n_support = len(users) - 1
 
         training_cache: dict[str, pd.DataFrame] = {}
+        testing_cache: dict[str, pd.DataFrame] = {}
         for user in users:
             training_cache[user.id] = user.merged_sessions(EnumTypeOfSession.TRAINING)
+            testing_cache[user.id] = user.merged_sessions(EnumTypeOfSession.TESTING)
             user.training_sessions = {}
+            user.testing_sessions = {}
 
         gc.collect()
 
         for user in users:
-            true_user_df = training_cache[user.id].copy()
+            true_user_training_df = training_cache[user.id].copy()
+            true_user_test_df = testing_cache[user.id].copy()
+            has_impostors_in_test = (true_user_test_df["authentic"] == 0).any()
+            
+            authentic_training_df_size = len(true_user_training_df)
+            training_per_support_size = authentic_training_df_size // n_support
 
-            authentic_df_size = len(true_user_df)
-            per_support_size = authentic_df_size // n_support
+            all_training_dfs = [true_user_training_df]
+            
+            authentic_test_df_size = len(true_user_test_df)
+            test_per_support_size = authentic_test_df_size // n_support
 
-            all_training_dfs = [true_user_df]
+            all_testing_dfs = [true_user_test_df]
 
             for support_user in users:
                 if support_user.id == user.id:
                     continue
 
-                support_df = training_cache[support_user.id].iloc[:per_support_size].copy()
-                support_df["authentic"] = 0
-                all_training_dfs.append(support_df)
+                seed = int(user.id) * 1000 + int(support_user.id) + self.seed_number
+
+                support_training_df = training_cache[support_user.id].sample(
+                    training_per_support_size, 
+                    random_state = seed
+                ).copy()
+                
+                support_training_df["authentic"] = 0
+                all_training_dfs.append(support_training_df)
+                
+                
+                if not has_impostors_in_test:
+                    support_test_df = testing_cache[support_user.id].sample(
+                        test_per_support_size, 
+                        random_state = seed
+                    ).copy()
+                    
+                    support_test_df["authentic"] = 0
+                    all_testing_dfs.append(support_test_df)
 
             final_training_df = pd.concat(all_training_dfs, ignore_index=True)
-            del all_training_dfs
+            final_testing_df = pd.concat(all_testing_dfs, ignore_index=True)
+            
+            del all_training_dfs, all_testing_dfs
 
-            merged_testing_df = user.merged_sessions(EnumTypeOfSession.TESTING)
             user.training_sessions = {"_merged": final_training_df}
-            user.testing_sessions  = {"_merged": merged_testing_df}
+            user.testing_sessions  = {"_merged": final_testing_df}
 
             if self.is_debug:
                 self._write_debug_file(user)
 
         training_cache.clear()
+        testing_cache.clear()
         gc.collect()
 
         return extraction_data

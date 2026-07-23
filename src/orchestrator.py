@@ -39,7 +39,8 @@ class Orchestrator:
                  splitter: EnumSplitters,
                  classifiers: list[EnumClassifiers],
                  preprocessor_window_size: int = 40,
-                 is_debug = False):
+                 is_debug = False,
+                 seed_number=1):
         self.extraction_data: ExtractionData | None = None
         self._dataset_enum = dataset
         self._preprocessor_enum = preprocessor
@@ -47,6 +48,7 @@ class Orchestrator:
         self._classifiers_enum = classifiers
         self._preprocessor_window_size = preprocessor_window_size
         self._is_debug = is_debug
+        self._seed_number = seed_number
 
     @staticmethod
     def __rebuild_directory(directory_path: str):
@@ -86,7 +88,14 @@ class Orchestrator:
         :return: self
         """
         logger.info(f"Splitting.")
-        splitter = load_splitter(self._splitter_enum, self._is_debug, self._preprocessor_window_size)
+        
+        splitter = load_splitter(
+            self._splitter_enum, 
+            self._is_debug,
+            self._preprocessor_window_size, 
+            self._seed_number
+        )
+        
         self.extraction_data = splitter.split(self.extraction_data)
         return self
 
@@ -105,7 +114,7 @@ class Orchestrator:
                     is_debug=self._is_debug
             ) as experiment_logger:
                 logger.info(f"Fitting: [{classifier.value}]")
-                loaded_classifier = load_classifier(classifier, self._is_debug)
+                loaded_classifier = load_classifier(classifier, self._is_debug, self._seed_number)
                 loaded_classifier.set_experiment_logger(experiment_logger)
                 loaded_classifier.fit(self.extraction_data)
         return self
@@ -140,4 +149,4 @@ class Orchestrator:
         self._load_dataset() \
             ._preprocess() \
             ._split() \
-            #._fit()
+            ._fit()

@@ -19,8 +19,8 @@ class MLPClassifier(BaseClassifier):
     Custom MLP classifier following the project pattern
     """
 
-    def __init__(self, is_debug: bool = False):
-        super().__init__(is_debug)
+    def __init__(self, is_debug: bool = False, seed_number: int = 1):
+        super().__init__(is_debug, seed_number)
 
     def fit(self, extraction_data: ExtractionData):
         """
@@ -49,7 +49,7 @@ class MLPClassifier(BaseClassifier):
                     max_iter=150,
                     early_stopping=True,
                     n_iter_no_change=10,
-                    random_state=42
+                    random_state=self.seed_number
                 )
             else:
                 study_name = f"user{user.id}"
@@ -136,10 +136,10 @@ class MLPClassifier(BaseClassifier):
             early_stopping=True,
             validation_fraction=0.1,
             n_iter_no_change=10,
-            random_state=42
+            random_state=self.seed_number
         )
 
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.seed_number)
 
         scores = cross_val_score(
             model,
@@ -177,7 +177,7 @@ class MLPClassifier(BaseClassifier):
             early_stopping=True,
             validation_fraction=0.1,
             n_iter_no_change=20,
-            random_state=42,
+            random_state=self.seed_number,
         )
 
         if best_params["solver"] == "sgd":

@@ -149,12 +149,12 @@ class BasePreprocessor:
         agg_df.columns = [f"{stat}_{col}" for col, stat in agg_df.columns]
         agg_df = agg_df.reset_index(drop=True)
 
-        traveled = features_df["traveled_distance"].to_numpy()
-        speed    = features_df["speed"].to_numpy()
-        h_acc    = features_df["horizontal_acceleration"].to_numpy()
-        v_acc    = features_df["vertical_acceleration"].to_numpy()
-        angle    = features_df["angle"].to_numpy()
+        traveled   = features_df["traveled_distance"].to_numpy()
+        speed      = features_df["speed"].to_numpy()
+        angle      = features_df["angle"].to_numpy()
         timestamps = features_df["timestamp"].to_numpy()
+        x_pos      = features_df["x"].to_numpy()
+        y_pos      = features_df["y"].to_numpy()
 
         window_starts = np.arange(0, n, self._window_size)
         n_windows = len(window_starts)
@@ -170,31 +170,36 @@ class BasePreprocessor:
             end = min(start + self._window_size, n)
             sl_traveled = traveled[start:end]
             sl_speed    = speed[start:end]
-            sl_h_acc    = h_acc[start:end]
-            sl_v_acc    = v_acc[start:end]
             sl_angle    = angle[start:end]
             sl_ts       = timestamps[start:end]
+            sl_x        = x_pos[start:end]
+            sl_y        = y_pos[start:end]
 
-            # 2.  curve_length  — total path length inside the window
+            # 2.  curve_length
             curve_len = sl_traveled.sum()
             curve_length_w[i] = curve_len
 
-            # 24. total_angles  — algebraic sum of direction changes in window
-            total_angles_w[i] = sl_angle.sum()
+            # 24. total_angles
+            if len(sl_angle) > 1:
+                d_angle = np.diff(sl_angle)
+                d_angle = (d_angle + np.pi) % (2 * np.pi) - np.pi
+                total_angles_w[i] = d_angle.sum()
+            else:
+                total_angles_w[i] = 0.0
 
-            # 14. avg_speed_against_distance  — mean speed normalised by path length
+            # 14. avg_speed_against_distance
             if curve_len != 0:
                 avg_spd_dist_w[i] = sl_speed.mean() / curve_len
 
             # 17. avg_x_acc_against_distance
-            if curve_len != 0:
-                avg_x_acc_dist_w[i] = sl_h_acc.mean() / curve_len
+            if len(sl_x) >= 3:
+                avg_x_acc_dist_w[i] = (sl_x[2:] - 2 * sl_x[1:-1] + sl_x[:-2]).mean()
 
             # 18. avg_y_acc_against_distance
-            if curve_len != 0:
-                avg_y_acc_dist_w[i] = sl_v_acc.mean() / curve_len
+            if len(sl_y) >= 3:
+                avg_y_acc_dist_w[i] = (sl_y[2:] - 2 * sl_y[1:-1] + sl_y[:-2]).mean()
 
-            # 32. acc_beginning_time  — Δt between first two timestamps of window
+            # 32. acc_beginning_time
             if len(sl_ts) > 1:
                 acc_beginning_time_w[i] = sl_ts[1] - sl_ts[0]
 
@@ -274,31 +279,24 @@ class BasePreprocessor:
         self._extracted_features["movement_offset"] = self.curve_length - direct_displacement
 
         # 5. Deviation Distance
-        # Perpendicular distance from point i to the chord connecting its two
-        # neighbours (i-1, i+1).  The cross-product formula gives a signed
-        # area; dividing by the chord length yields a signed distance whose
-        # sign indicates which side of the chord the point lies on.  Taking
-        # the absolute value converts it to a true (non-negative) distance.
-        # TODO: Create a preprocessing version using discrete formulas
-        deviation_distance_upper_part = (
-            (y_axis_arr[:-2] - y_axis_arr[2:]) * x_axis_arr[1:-1]
-            + (x_axis_arr[2:] - x_axis_arr[:-2]) * y_axis_arr[1:-1]
-            + (x_axis_arr[:-2] * y_axis_arr[2:] - x_axis_arr[2:] * y_axis_arr[:-2])
-        )
-        deviation_distance_lower_part = np.sqrt(
-            (x_axis_arr[2:] - x_axis_arr[:-2]) ** 2
-            + (y_axis_arr[2:] - y_axis_arr[:-2]) ** 2
-        )
-        deviation_distance = np.zeros_like(deviation_distance_lower_part)
-        np.divide(
-            np.abs(deviation_distance_upper_part),
-            deviation_distance_lower_part,
-            out=deviation_distance,
-            where=deviation_distance_lower_part != 0,
-        )
-        self._extracted_features["deviation_distance"] = np.concatenate(
-            ([0], deviation_distance, [0])
-        )
+        # Perpendicular distance from each point i to the straight line that
+        # connects the trajectory start (x0, y0) and end (x1, y1).
+        # Formula from Khan et al. Table 1:
+        #   |(y0−y1)·xi + (x1−x0)·yi + (x0·y1 − x1·y0)| / √((x1−x0)²+(y1−y0)²)
+        x0, y0 = x_axis_arr[0], y_axis_arr[0]
+        x1, y1 = x_axis_arr[-1], y_axis_arr[-1]
+        chord_len = np.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2)
+        
+        if chord_len != 0:
+            deviation_distance = np.abs(
+                (y0 - y1) * x_axis_arr
+                + (x0 - x1) * y_axis_arr
+                + (x0 * y1 - x1 * y0)
+            ) / chord_len
+        else:
+            deviation_distance = np.zeros_like(x_axis_arr, dtype=float)
+            
+        self._extracted_features["deviation_distance"] = deviation_distance
 
         # 6. Straightness / Efficiency
         # straightness = np.zeros_like(self._diff_time_arr)
@@ -311,19 +309,6 @@ class BasePreprocessor:
         # self._extracted_features["straightness"] = straightness
 
         # 7. Jitter
-        # Ratio of raw step length to smoothed step length.  Values > 1 mean
-        # the cursor deviated from the smooth path (tremor / noise); 1 means
-        # perfectly smooth.
-        #
-        # mode="same" zero-pads the signal at both ends, which distorts the
-        # first and last (window_size // 2) values.  Instead we use
-        # mode="valid" on an asymmetrically edge-padded signal so every output
-        # point uses a full, real neighbourhood and the output length is
-        # always exactly n, regardless of whether window_size is even or odd.
-        #   pad_left  = (w - 1) // 2   →  floor half
-        #   pad_right = w // 2          →  ceil  half
-        # This satisfies pad_left + pad_right == window_size - 1, which is
-        # the exact condition for len(valid output) == len(original signal).
         pad_left  = (window_size - 1) // 2
         pad_right = window_size // 2
         x_padded = np.pad(x_axis_arr, (pad_left, pad_right), mode="edge")
@@ -335,12 +320,13 @@ class BasePreprocessor:
             np.concatenate(([0], np.diff(smoothed_x))) ** 2
             + np.concatenate(([0], np.diff(smoothed_y))) ** 2
         )
+        
         jitter = np.zeros_like(self._diff_time_arr)
         np.divide(
-            self._traveled_distance,
             smoothed_path_length,
+            self._traveled_distance,
             out=jitter,
-            where=smoothed_path_length != 0,
+            where=self._traveled_distance != 0,
         )
         self._extracted_features["jitter"] = jitter
 

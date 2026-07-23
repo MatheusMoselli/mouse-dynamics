@@ -24,12 +24,13 @@ class BaseClassifier(ABC):
     NUMBER_OF_TRIALS = 15
     _experiment_logger: ExperimentLogger = None
 
-    def __init__(self, is_debug: bool = False):
+    def __init__(self, is_debug: bool = False, seed_number: int = 1):
         """
         Class initialization.
         :param is_debug: Is the classifier being run in debug mode.
         """
         self.is_debug = is_debug
+        self.seed_number = seed_number
 
     def set_experiment_logger(self, experiment_logger: ExperimentLogger):
         """
@@ -118,14 +119,14 @@ class BaseClassifier(ABC):
         :return: the best model
         """
         x_sample, _, y_sample, _ = train_test_split(
-            x_train, y_train, train_size=0.3, stratify=y_train
+            x_train, y_train, train_size=0.3, stratify=y_train, random_state=self.seed_number
         )
 
         full_study_name = f"{self._experiment_logger._record.classifier}_{self._experiment_logger._record.dataset}__{study_name}"
 
         study = optuna.create_study(
             direction="maximize",
-            sampler=optuna.samplers.TPESampler(seed=42),
+            sampler=optuna.samplers.TPESampler(seed=self.seed_number),
             pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
             study_name=f"{full_study_name}.db",
             storage=f"sqlite:///best-parameters/{self._experiment_logger._record.dataset}/{full_study_name}.db",

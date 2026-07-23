@@ -3,16 +3,18 @@ Centralizes the test/training split for fitting into multiple classifiers
 """
 from enum import Enum
 from .base_splitter import BaseSplitter
-from .fifty_fifty_splitter import FiftyFiftySplitter
 from .half import HalfSplitter
-from .minecraft_splitter import MinecraftSplitter
 
 class EnumSplitters(Enum):
     MINECRAFT = "minecraft"
     FIFTY_FIFTY = "fifty_fifty"
     HALF = "half"
 
-def load_splitter(splitter_name: EnumSplitters, is_debug: bool, window_size: bool) -> BaseSplitter:
+def load_splitter(
+    splitter_name: EnumSplitters, 
+    is_debug: bool,
+    window_size: bool,
+    seed_number: int) -> BaseSplitter:
     """
     Factory function to split the datasets between train/test sets.
 
@@ -21,13 +23,11 @@ def load_splitter(splitter_name: EnumSplitters, is_debug: bool, window_size: boo
     :return: a splitter implementation.
     """
     splitters = {
-        EnumSplitters.MINECRAFT: MinecraftSplitter,
-        EnumSplitters.FIFTY_FIFTY: FiftyFiftySplitter,
         EnumSplitters.HALF: HalfSplitter,
     }
 
     if splitter_name in splitters:
-        splitter = splitters[splitter_name](is_debug, window_size)
+        splitter = splitters[splitter_name](is_debug, window_size, seed_number)
         return splitter
     else:
         raise ValueError(f"Unknown splitter: {splitter_name}")

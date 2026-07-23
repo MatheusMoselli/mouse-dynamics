@@ -19,8 +19,8 @@ class KNNClassifier(BaseClassifier):
     Custom KNN classifier following the project pattern
     """
 
-    def __init__(self, is_debug: bool = False):
-        super().__init__(is_debug)
+    def __init__(self, is_debug: bool = False, seed_number: int = 1):
+        super().__init__(is_debug, seed_number)
 
     def fit(self, extraction_data: ExtractionData):
         """
@@ -117,7 +117,7 @@ class KNNClassifier(BaseClassifier):
             n_jobs=1
         )
 
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.seed_number)
 
         scores = cross_val_score(
             model,

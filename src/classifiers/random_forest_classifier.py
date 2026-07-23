@@ -22,8 +22,8 @@ class RandomForestClassifier(BaseClassifier):
     Custom Random Forest Classifier following the project pattern
     """
 
-    def __init__(self, is_debug: bool = False):
-        super().__init__(is_debug)
+    def __init__(self, is_debug: bool = False, seed_number: int = 1):
+        super().__init__(is_debug, seed_number)
 
     def fit(self, extraction_data: ExtractionData):
         """
@@ -49,7 +49,7 @@ class RandomForestClassifier(BaseClassifier):
                     min_samples_leaf=2,
                     max_features='sqrt',
                     n_jobs=1,
-                    random_state=42
+                    random_state=self.seed_number
                 )
             else:
                 study_name = f"user{user.id}"
@@ -125,10 +125,10 @@ class RandomForestClassifier(BaseClassifier):
         model = SkLearnRandomForestClassifier(
             **params,
             n_jobs=1,
-            random_state=42
+            random_state=self.seed_number
         )
 
-        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+        cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.seed_number)
 
         scores = cross_val_score(
             model, x_train, y_train,
@@ -156,9 +156,8 @@ class RandomForestClassifier(BaseClassifier):
         # Remove chaves internas do Optuna que não vão para o sklearn
         params = {k: v for k, v in best_params.items() if k != "class_weight"}
         params["class_weight"] = best_params.get("class_weight")
-        params["random_state"] = 42
+        params["random_state"] = self.seed_number
         params["n_jobs"] = -1
 
         model = SkLearnRandomForestClassifier(**params)
-        model.fit(x_train, y_train)
         return model
