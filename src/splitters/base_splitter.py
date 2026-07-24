@@ -39,5 +39,5 @@ class BaseSplitter:
         directory_path = Path(f"../datasets/split/user{user.id}")
         directory_path.mkdir(parents=True, exist_ok=True)
 
-        log_dataframe_sessions(directory_path / "training" / f"{self.window_size}", user.training_sessions)
-        log_dataframe_sessions(directory_path / "testing" / f"{self.window_size}", user.testing_sessions)
+        log_dataframe_sessions(directory_path / "training" / f"wind{self.window_size}" / f"seed{self.seed_number}", user.training_sessions)
+        log_dataframe_sessions(directory_path / "testing" / f"wind{self.window_size}" / f"seed{self.seed_number}", user.testing_sessions)

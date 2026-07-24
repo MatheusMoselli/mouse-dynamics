@@ -19,13 +19,13 @@ for seed in ALL_SEEDS:
         print("=" * 80)
 
         orchestrator = Orchestrator(
-            dataset=EnumDatasets.MINECRAFT,
+            dataset=EnumDatasets.BOGAZICI,
             splitter=EnumSplitters.HALF,
             classifiers=ALL_CLASSIFIERS,
             preprocessor_window_size=window_size,
             preprocessor=EnumPreprocessors.KHAN,
             seed_number=seed,
-            is_debug=False,
+            is_debug=True,
         )
         
         orchestrator.run()

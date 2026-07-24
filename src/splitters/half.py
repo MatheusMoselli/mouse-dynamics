@@ -56,10 +56,13 @@ class HalfSplitter(BaseSplitter):
 
                 seed = int(user.id) * 1000 + int(support_user.id) + self.seed_number
 
-                support_training_df = training_cache[support_user.id].sample(
-                    training_per_support_size, 
-                    random_state = seed
-                ).copy()
+                if len(training_cache[support_user.id]) <= training_per_support_size:
+                    support_training_df = training_cache[support_user.id]
+                else:
+                    support_training_df = training_cache[support_user.id].sample(
+                        training_per_support_size, 
+                        random_state = seed
+                    ).copy()
                 
                 support_training_df["authentic"] = 0
                 all_training_dfs.append(support_training_df)
