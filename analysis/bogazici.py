@@ -25,7 +25,7 @@ for seed in ALL_SEEDS:
             preprocessor_window_size=window_size,
             preprocessor=EnumPreprocessors.KHAN,
             seed_number=seed,
-            is_debug=True,
+            is_debug=False,
         )
         
         orchestrator.run()
