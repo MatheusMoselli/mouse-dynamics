@@ -4,9 +4,9 @@ from src.preprocessors  import EnumPreprocessors
 from src.splitters      import EnumSplitters
 from src.orchestrator   import Orchestrator
 
-ALL_CLASSIFIERS  = [EnumClassifiers.RANDOM_FOREST, EnumClassifiers.MLP, EnumClassifiers.KNN]
-ALL_WINDOW_SIZES = [10, 50, 100, 150, 200, 250]
-ALL_SEEDS = [1, 2, 3, 4, 5]
+ALL_CLASSIFIERS  = [EnumClassifiers.KNN]
+ALL_WINDOW_SIZES = [200, 150, 100]
+ALL_SEEDS = [5]
 
 total = len(ALL_CLASSIFIERS) * len(ALL_WINDOW_SIZES) * len(ALL_SEEDS)
 count = 0

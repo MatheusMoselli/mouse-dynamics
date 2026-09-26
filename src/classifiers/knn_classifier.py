@@ -5,9 +5,9 @@ see: https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighb
 import numpy as np
 import optuna
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.model_selection import StratifiedKFold
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import classification_report, balanced_accuracy_score
+from sklearn.metrics import classification_report, balanced_accuracy_score, f1_score
 from src.classifiers import BaseClassifier
 from src.dto import ExtractionData
 import logging
@@ -87,30 +87,39 @@ class KNNClassifier(BaseClassifier):
         :return: the mean of scores in the trial
         """
         params = {
-            "n_neighbors": trial.suggest_int("n_neighbors", 3, 50),
+            # 3-50 permitia k grandes que so encarecem a busca por vizinhos
+            # sem ganho consistente de f1_macro nesse tipo de dado;
+            # 3-30 cobre a faixa que realmente costuma vencer.
+            "n_neighbors": trial.suggest_int("n_neighbors", 3, 30),
 
             "weights": trial.suggest_categorical(
                 "weights", ["uniform", "distance"]
             ),
-
-            "algorithm": trial.suggest_categorical(
-                "algorithm", ["auto", "brute"]
-            ),
         }
 
+        # "brute" foi removido do espaco de busca: e sempre O(n*d) por
+        # consulta e, na pratica, "auto" ja cai em brute sozinho quando o
+        # dataset/metrica nao favorece KD-Tree -- ou seja, manter "brute"
+        # como opcao so forcava o pior caso com mais frequencia sem
+        # necessidade. Deixar o sklearn decidir com "auto".
+        params["algorithm"] = "auto"
+
+        # "chebyshev" tirado: raramente venceu nos resultados e, com
+        # "auto", tende a empurrar para brute force (KD-Tree nao acelera
+        # bem essa metrica em alta dimensionalidade).
         metric = trial.suggest_categorical(
             "metric",
-            ["euclidean", "manhattan", "chebyshev", "minkowski"]
+            ["euclidean", "manhattan", "minkowski"]
         )
 
         params["metric"] = metric
 
         if metric == "minkowski":
             params["p"] = trial.suggest_int("p", 1, 4)
-            
-        if params["algorithm"] in ["auto", "ball_tree", "kd_tree"]:
-            params["leaf_size"] = trial.suggest_int("leaf_size", 10, 100)
 
+        # leaf_size removido: so afeta construcao/busca em KD-Tree/Ball-Tree
+        # e o ganho de tunar isso e marginal comparado ao custo de mais uma
+        # dimensao no espaco de busca do Optuna.
 
         model = KNeighborsClassifier(
             **params,
@@ -119,17 +128,30 @@ class KNNClassifier(BaseClassifier):
 
         cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.seed_number)
 
-        scores = cross_val_score(
-            model,
-            x_train,
-            y_train,
-            cv=cv,
-            scoring="f1_macro",
-            error_score=0.0,
-            n_jobs=1
-        )
+        # Loop manual (em vez de cross_val_score) para poder reportar o
+        # score parcial a cada fold. Sem isso o MedianPruner configurado em
+        # _get_best_model nunca tem dado intermediario pra comparar e o
+        # trial sempre roda os 3 folds inteiros mesmo quando ja esta
+        # visivelmente pior que a mediana dos trials anteriores.
+        fold_scores = []
+        for step, (train_idx, val_idx) in enumerate(cv.split(x_train, y_train)):
+            x_fold_train, x_fold_val = x_train[train_idx], x_train[val_idx]
+            y_fold_train, y_fold_val = y_train.iloc[train_idx], y_train.iloc[val_idx]
 
-        return float(scores.mean())
+            try:
+                model.fit(x_fold_train, y_fold_train)
+                y_fold_pred = model.predict(x_fold_val)
+                fold_score = f1_score(y_fold_val, y_fold_pred, average="macro", zero_division=0)
+            except ValueError:
+                fold_score = 0.0
+
+            fold_scores.append(fold_score)
+
+            trial.report(float(np.mean(fold_scores)), step)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        return float(np.mean(fold_scores))
 
     def _train_best_model(
             self,
@@ -149,7 +171,6 @@ class KNNClassifier(BaseClassifier):
             weights=best_params["weights"],
             metric=best_params["metric"],
             p=best_params.get("p", 2),
-            algorithm=best_params["algorithm"],
-            leaf_size=best_params.get("leaf_size", 30),
+            algorithm="auto",
             n_jobs=-1
         )

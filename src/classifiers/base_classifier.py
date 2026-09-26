@@ -2,6 +2,7 @@
 Base classifier for better abstraction and dependency injection
 """
 import logging
+from pathlib import Path
 
 import optuna
 import pandas as pd
@@ -11,6 +12,7 @@ from abc import ABC, abstractmethod
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from src.utils.experiment_logger import ExperimentLogger
+from src.utils.split_cache import split_dir, read_merged
 from src.dto import ExtractionData, UserDataDto, EnumTypeOfSession
 
 _DROP_COLS = ["authentic"]
@@ -31,6 +33,12 @@ class BaseClassifier(ABC):
         """
         self.is_debug = is_debug
         self.seed_number = seed_number
+        # Where to look for a user's split on disk if it isn't already resident
+        # in user.training_sessions/testing_sessions. Same hardcoded path
+        # HalfSplitter and BaseSplitter._write_debug_file already use. Keyed
+        # only by user id + seed_number -- this cache is transient (one
+        # window_size/seed run at a time overwrites the previous one).
+        self._split_output_dir: Path = Path("../datasets/split")
 
     def set_experiment_logger(self, experiment_logger: ExperimentLogger):
         """
@@ -127,7 +135,16 @@ class BaseClassifier(ABC):
         study = optuna.create_study(
             direction="maximize",
             sampler=optuna.samplers.TPESampler(seed=self.seed_number),
-            pruner=optuna.pruners.MedianPruner(n_warmup_steps=5),
+            # n_warmup_steps=5 nunca podava nada: com StratifiedKFold(n_splits=3)
+            # os classificadores só reportam steps 0, 1 e 2 por trial, então a
+            # poda jamais era liberada. n_warmup_steps=1 deixa o fold 0 sempre
+            # completar (sinal minimo antes de decidir) e permite podar a
+            # partir do fold 1 se o trial ja estiver visivelmente pior que a
+            # mediana. Isso so tem efeito em studies com pruning ativo no
+            # objective (RF/MLP no formato antigo com cross_val_score nao
+            # reportam steps, entao continuam rodando os 3 folds normalmente
+            # ate que seus _objective tambem sejam migrados para o loop manual).
+            pruner=optuna.pruners.MedianPruner(n_warmup_steps=1),
             study_name=f"{full_study_name}.db",
             storage=f"sqlite:///best-parameters/{self._experiment_logger._record.dataset}/{full_study_name}.db",
             load_if_exists=True
@@ -137,8 +154,13 @@ class BaseClassifier(ABC):
             t for t in study.trials
             if t.state == optuna.trial.TrialState.COMPLETE
         ])
+        
+        pruned = len([
+            t for t in study.trials
+            if t.state == optuna.trial.TrialState.PRUNED
+        ])
 
-        remaining = max(0, self.NUMBER_OF_TRIALS - completed)
+        remaining = max(0, self.NUMBER_OF_TRIALS - completed - pruned)
 
         if remaining == 0:
             logger.info(f"Study {full_study_name} já completo ({completed} trials), pulando otimização.")
@@ -156,6 +178,38 @@ class BaseClassifier(ABC):
         best_model = self._train_best_model(best_params, x_sample, y_sample)
         return best_model
 
+    def _get_user_session_df(self, user: UserDataDto, session_type: EnumTypeOfSession) -> pd.DataFrame:
+        """
+        Get one user's merged session dataframe for the given session type,
+        preferring whatever is already in memory. If the splitter persisted
+        this user's data to disk and freed it from RAM (HalfSplitter's default
+        behavior), load just this one user's data from the cache instead.
+
+        This is the single point that decides "in-memory vs disk" so fit()
+        implementations in the concrete classifiers never have to know which
+        splitter produced the data.
+        """
+        sessions = (
+            user.training_sessions
+            if session_type == EnumTypeOfSession.TRAINING
+            else user.testing_sessions
+        )
+
+        if sessions:
+            return user.merged_sessions(session_type)
+
+        directory = split_dir(
+            self._split_output_dir,
+            user.id,
+            "training" if session_type == EnumTypeOfSession.TRAINING else "testing",
+            self.seed_number,
+        )
+        logger.debug(
+            "[BaseClassifier] user=%s not resident in memory, loading %s split from disk: %s",
+            user.id, session_type, directory,
+        )
+        return read_merged(directory)
+
     def _prepare_user_data(
             self,
             user: UserDataDto
@@ -166,11 +220,11 @@ class BaseClassifier(ABC):
         :param user: UserDataDto after preprocessing and splitting
         :return: (x_train, y_train, x_test, y_test) or None
         """
-        if not user.is_user_valid():
-            return None
+        # if not user.is_user_valid():
+        #     return None
 
-        train_df = user.merged_sessions(EnumTypeOfSession.TRAINING).dropna()
-        test_df = user.merged_sessions(EnumTypeOfSession.TESTING).dropna()
+        train_df = self._get_user_session_df(user, EnumTypeOfSession.TRAINING).dropna()
+        test_df = self._get_user_session_df(user, EnumTypeOfSession.TESTING).dropna()
 
         if train_df.empty or test_df.empty:
             return None
@@ -182,6 +236,12 @@ class BaseClassifier(ABC):
         y_test = test_df["authentic"]
 
         normalized_x_train, normalized_x_test = self._normalize_data(x_train, x_test)
+
+        # train_df/test_df (and x_train/x_test, now superseded by the
+        # normalized numpy arrays) are no longer needed -- drop them here so
+        # this user's raw data doesn't linger in memory while the next user's
+        # split gets loaded/trained on.
+        del train_df, test_df, x_train, x_test
 
         return normalized_x_train, y_train, normalized_x_test, y_test
 
